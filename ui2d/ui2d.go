@@ -16,9 +16,10 @@ import (
 const winWidth, winHeight = 1280, 720
 
 var (
-	renderer     *sdl.Renderer
-	textureAtlas *sdl.Texture
-	textureIndex map[game.Tile]sdl.Rect
+	renderer         *sdl.Renderer
+	textureAtlas     *sdl.Texture
+	textureIndex     map[game.Tile]sdl.Rect
+	centerX, centerY int
 )
 
 type UI2d struct {
@@ -114,19 +115,60 @@ func init() {
 
 	textureAtlas = imgFileToTexture("ui2d/assets/tiles.png")
 	loadTextureIndex()
+
+	centerX = -1
+	centerY = -1
 }
 
 func (ui *UI2d) Draw(level *game.Level) {
+	if centerX == -1 && centerY == -1 {
+		centerX = level.Player.X
+		centerY = level.Player.Y
+	}
+
+	limit := 5
+	if level.Player.X > centerX+limit {
+		centerX++
+	} else if level.Player.X < centerX-limit {
+		centerX--
+	} else if level.Player.Y > centerY+limit {
+		centerY++
+	} else if level.Player.Y < centerY-limit {
+		centerY--
+	}
+	offsetX := int32(winWidth/2 - centerX*32)
+	offsetY := int32(winHeight/2 - centerY*32)
+
+	err := renderer.Clear()
+	if err != nil {
+		panic(err)
+	}
 	for y, row := range level.Map {
 		for x, tile := range row {
 			srcRect := textureIndex[tile]
-			dstRect := sdl.Rect{int32(x * 32), int32(y * 32), 32, 32}
+			dstRect := sdl.Rect{int32(x*32) + offsetX, int32(y*32) + offsetY, 32, 32}
+
+			pos := game.Pos{X: x, Y: y}
+			if level.Debug[pos] {
+				err := textureAtlas.SetColorMod(128, 0, 0)
+				if err != nil {
+					panic(err)
+				}
+			} else {
+				err := textureAtlas.SetColorMod(255, 255, 255)
+				if err != nil {
+					panic(err)
+				}
+			}
+
 			if err := renderer.Copy(textureAtlas, &srcRect, &dstRect); err != nil {
 				panic(err)
 			}
+
 		}
 	}
-	if err := renderer.Copy(textureAtlas, &sdl.Rect{21 * 32, 59 * 32, 32, 32}, &sdl.Rect{int32(level.Player.X * 32), int32(level.Player.Y * 32), 32, 32}); err != nil {
+
+	if err := renderer.Copy(textureAtlas, &sdl.Rect{21 * 32, 59 * 32, 32, 32}, &sdl.Rect{int32(level.Player.X*32) + offsetX, int32(level.Player.Y*32) + offsetY, 32, 32}); err != nil {
 		panic(err)
 	}
 	renderer.Present()
@@ -150,11 +192,13 @@ func (ui *UI2d) GetInput() *game.Input {
 				return &game.Input{Typ: game.Left}
 			case sdl.K_RIGHT:
 				return &game.Input{Typ: game.Right}
+			case sdl.K_s:
+				return &game.Input{Typ: game.Search}
 			default:
 				return &game.Input{Typ: game.None}
 			}
-
 		}
+		sdl.Delay(10)
 	}
 	return &game.Input{Typ: game.None}
 }
