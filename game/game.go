@@ -2,6 +2,7 @@ package game
 
 import (
 	"bufio"
+	"fmt"
 	"math"
 	"os"
 )
@@ -73,9 +74,43 @@ type Player struct {
 }
 type Level struct {
 	Map      [][]Tile
-	Player   Player
+	Player   *Player
 	Monsters map[Pos]*Monster
 	Debug    map[Pos]bool
+}
+
+type Attackable interface {
+	GetActionPoints() float64
+	SetActionPoints(float64)
+	GetHitPoints() int
+	SetHitPoints(int)
+	GetAttackPower() int
+}
+
+func (c *Character) GetActionPoints() float64 {
+	return c.ActionPoints
+}
+func (c *Character) SetActionPoints(ap float64) {
+	c.ActionPoints = ap
+}
+func (c *Character) GetHitPoints() int {
+	return c.Hitpoints
+}
+func (c *Character) SetHitPoints(hp int) {
+	c.Hitpoints = hp
+}
+func (c *Character) GetAttackPower() int {
+	return c.Strength
+}
+
+func Attack(a1, a2 Attackable) {
+	a1.SetActionPoints(a1.GetActionPoints() - 1)
+	a2.SetHitPoints(a2.GetHitPoints() - a1.GetAttackPower())
+
+	if a2.GetHitPoints() > 0 {
+		a2.SetActionPoints(a2.GetActionPoints() - 1)
+		a1.SetHitPoints(a1.GetHitPoints() - a2.GetAttackPower())
+	}
 }
 
 func inRange(level *Level, pos Pos) bool {
@@ -102,9 +137,18 @@ func checkDoor(level *Level, pos Pos) {
 }
 
 func (player *Player) Move(to Pos, level *Level) {
-	_, exists := level.Monsters[to]
+	monster, exists := level.Monsters[to]
 	if !exists {
 		player.Pos = to
+	} else {
+		Attack(player, monster)
+		if monster.Hitpoints <= 0 {
+			fmt.Printf("Monster %v is dead\n", monster.Name)
+			delete(level.Monsters, monster.Pos)
+		}
+		if level.Player.Hitpoints <= 0 {
+			panic("You are Dead !")
+		}
 	}
 }
 
@@ -177,6 +221,14 @@ func LoadLevelFromFile(fileName string) *Level {
 	}
 
 	level := &Level{}
+
+	level.Player = &Player{Character{
+		Entity:       Entity{Name: "GoMan", Rune: '@'},
+		Hitpoints:    20,
+		Strength:     20,
+		Speed:        1.0,
+		ActionPoints: 0,
+	}}
 	level.Map = make([][]Tile, len(levelLines))
 	level.Monsters = make(map[Pos]*Monster)
 
@@ -343,6 +395,7 @@ func (game *Game) Run() {
 		for _, monster := range game.Level.Monsters {
 			monster.Update(game.Level)
 		}
+
 		if len(game.LevelChans) == 0 {
 			return
 		}
