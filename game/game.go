@@ -29,7 +29,7 @@ func NewGame(numWindows int, levelPath string) *Game {
 	for i := range levelChans {
 		levelChans[i] = make(chan *Level)
 	}
-	inputChan := make(chan *Input)
+	inputChan := make(chan *Input, 10)
 
 	return &Game{levelChans, inputChan, LoadLevelFromFile(levelPath)}
 }
@@ -76,6 +76,8 @@ type Level struct {
 	Map      [][]Tile
 	Player   *Player
 	Monsters map[Pos]*Monster
+	Events   []string
+	EventPos int
 	Debug    map[Pos]bool
 }
 
@@ -85,6 +87,7 @@ type Attackable interface {
 	GetHitPoints() int
 	SetHitPoints(int)
 	GetAttackPower() int
+	Pass()
 }
 
 func (c *Character) GetActionPoints() float64 {
@@ -103,16 +106,23 @@ func (c *Character) GetAttackPower() int {
 	return c.Strength
 }
 
+func (c *Character) Pass() {
+	c.ActionPoints -= c.Speed
+}
+
 func Attack(a1, a2 Attackable) {
 	a1.SetActionPoints(a1.GetActionPoints() - 1)
 	a2.SetHitPoints(a2.GetHitPoints() - a1.GetAttackPower())
-
-	if a2.GetHitPoints() > 0 {
-		a2.SetActionPoints(a2.GetActionPoints() - 1)
-		a1.SetHitPoints(a1.GetHitPoints() - a2.GetAttackPower())
-	}
 }
 
+func (level *Level) AddEvent(event string) {
+	level.Events[level.EventPos] = event
+	level.EventPos++
+
+	if level.EventPos == len(level.Events) {
+		level.EventPos = 0
+	}
+}
 func inRange(level *Level, pos Pos) bool {
 	return pos.X < len(level.Map[0]) && pos.Y < len(level.Map) && pos.X >= 0 && pos.Y >= 0
 }
@@ -140,16 +150,18 @@ func (player *Player) Move(to Pos, level *Level) {
 	monster, exists := level.Monsters[to]
 	if !exists {
 		player.Pos = to
-	} else {
-		Attack(player, monster)
-		if monster.Hitpoints <= 0 {
-			fmt.Printf("Monster %v is dead\n", monster.Name)
-			delete(level.Monsters, monster.Pos)
-		}
-		if level.Player.Hitpoints <= 0 {
-			panic("You are Dead !")
-		}
+		return
 	}
+	level.AddEvent(fmt.Sprintf("%v attacked monster %v doing %v damage", player.Name, monster.Name, player.Strength))
+	Attack(player, monster)
+	if monster.Hitpoints <= 0 {
+		level.AddEvent(fmt.Sprintf("You killed %v", monster.Name))
+		delete(level.Monsters, monster.Pos)
+	}
+	if level.Player.Hitpoints <= 0 {
+		panic("You are Dead !")
+	}
+
 }
 
 func (game *Game) handleInput(input *Input) {
@@ -196,6 +208,9 @@ func (game *Game) handleInput(input *Input) {
 			}
 		}
 		game.LevelChans = append(game.LevelChans[:chanIndex], game.LevelChans[chanIndex+1:]...)
+		if len(game.LevelChans) == 0 {
+			os.Exit(1)
+		}
 	}
 }
 
@@ -221,9 +236,9 @@ func LoadLevelFromFile(fileName string) *Level {
 	}
 
 	level := &Level{}
-
+	level.Events = make([]string, 10)
 	level.Player = &Player{Character{
-		Entity:       Entity{Name: "GoMan", Rune: '@'},
+		Entity:       Entity{Name: "Elise", Rune: '@'},
 		Hitpoints:    20,
 		Strength:     20,
 		Speed:        1.0,
@@ -403,5 +418,6 @@ func (game *Game) Run() {
 		for _, lchan := range game.LevelChans {
 			lchan <- game.Level
 		}
+
 	}
 }

@@ -5,29 +5,36 @@ import (
 	"bufio"
 	"github.com/veandco/go-sdl2/img"
 	"github.com/veandco/go-sdl2/sdl"
-	"log"
+	"github.com/veandco/go-sdl2/ttf"
 	"math/rand"
 	"os"
 	"strconv"
 	"strings"
+	"unsafe"
 )
 
 type ui struct {
-	winWidth, winHeight int
-	renderer            *sdl.Renderer
-	window              *sdl.Window
-	textureAtlas        *sdl.Texture
-	textureIndex        map[game.Tile][]sdl.Rect
-	centerX, centerY    int
-	r                   *rand.Rand
-	levelChan           chan *game.Level
-	inputChan           chan *game.Input
+	winWidth, winHeight                       int
+	renderer                                  *sdl.Renderer
+	window                                    *sdl.Window
+	textureAtlas                              *sdl.Texture
+	textureIndex                              map[game.Tile][]sdl.Rect
+	centerX, centerY                          int
+	r                                         *rand.Rand
+	levelChan                                 chan *game.Level
+	inputChan                                 chan *game.Input
+	eventBackground                           *sdl.Texture
+	fontSmall, fontMedium, fontLarge          *ttf.Font
+	str2TexSmall, str2TexMedium, str2TexLarge map[string]*sdl.Texture
 }
 
 func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 	ui := &ui{}
 	ui.inputChan = inputChan
 	ui.levelChan = levelChan
+	ui.str2TexSmall = make(map[string]*sdl.Texture)
+	ui.str2TexMedium = make(map[string]*sdl.Texture)
+	ui.str2TexLarge = make(map[string]*sdl.Texture)
 	ui.r = rand.New(rand.NewSource(1))
 	ui.winWidth = 1280
 	ui.winHeight = 720
@@ -50,7 +57,73 @@ func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 	ui.centerX = -1
 	ui.centerY = -1
 
+	ui.fontSmall, err = ttf.OpenFont("ui2d/assets/Kingthings_Foundation.ttf", 18)
+	if err != nil {
+		panic(err)
+	}
+	ui.fontMedium, err = ttf.OpenFont("ui2d/assets/Kingthings_Foundation.ttf", 32)
+	if err != nil {
+		panic(err)
+	}
+	ui.fontLarge, err = ttf.OpenFont("ui2d/assets/Kingthings_Foundation.ttf", 64)
+	if err != nil {
+		panic(err)
+	}
+
+	ui.eventBackground = ui.GetSinglePixel(sdl.Color{0, 0, 0, 128})
+	ui.eventBackground.SetBlendMode(sdl.BLENDMODE_BLEND)
 	return ui
+}
+
+type FontSize int
+
+const (
+	FontSmall FontSize = iota
+	FontMedium
+	FontLarge
+)
+
+func (ui *ui) stringToTexture(s string, color sdl.Color, size FontSize) *sdl.Texture {
+
+	var font *ttf.Font
+	switch size {
+	case FontSmall:
+		font = ui.fontSmall
+		if tex, exists := ui.str2TexSmall[s]; exists {
+			return tex
+		}
+	case FontMedium:
+		font = ui.fontMedium
+		if tex, exists := ui.str2TexMedium[s]; exists {
+			return tex
+		}
+	case FontLarge:
+		font = ui.fontLarge
+		if tex, exists := ui.str2TexLarge[s]; exists {
+			return tex
+		}
+	}
+	fontSurface, err := font.RenderUTF8Blended(s, color)
+	if err != nil {
+		panic(err)
+	}
+	defer fontSurface.Free()
+
+	fontTexture, err := ui.renderer.CreateTextureFromSurface(fontSurface)
+	if err != nil {
+		panic(err)
+	}
+
+	switch size {
+	case FontSmall:
+		ui.str2TexSmall[s] = fontTexture
+	case FontMedium:
+		ui.str2TexMedium[s] = fontTexture
+	case FontLarge:
+		ui.str2TexLarge[s] = fontTexture
+	}
+
+	return fontTexture
 }
 
 func (ui *ui) loadTextureIndex() {
@@ -120,7 +193,11 @@ func init() {
 
 	err := sdl.Init(sdl.INIT_EVERYTHING)
 	if err != nil {
-		log.Println(err)
+		panic(err)
+		return
+	}
+
+	if err = ttf.Init(); err != nil {
 		return
 	}
 }
@@ -190,7 +267,53 @@ func (ui *ui) Draw(level *game.Level) {
 	if err := ui.renderer.Copy(ui.textureAtlas, &playerSrcRect, &sdl.Rect{int32(level.Player.X*32) + offsetX, int32(level.Player.Y*32) + offsetY, 32, 32}); err != nil {
 		panic(err)
 	}
+
+	ui.displayStats(level)
+
+	textStart := int32(float64(ui.winHeight) * .75)
+	textWidth := int32(float64(ui.winWidth) * .30)
+	ui.renderer.Copy(ui.eventBackground, nil, &sdl.Rect{X: 0, Y: textStart, W: textWidth, H: int32(ui.winHeight) - textStart})
+
+	i := level.EventPos
+	count := 0
+	for {
+		event := level.Events[i]
+		if event != "" {
+			tex := ui.stringToTexture(event, sdl.Color{255, 0, 0, 0}, FontSmall)
+			_, _, w, h, _ := tex.Query()
+			ui.renderer.Copy(tex, nil, &sdl.Rect{0, int32(count)*18 + textStart, w, h})
+		}
+		i = (i + 1) % (len(level.Events))
+		count++
+		if i == level.EventPos {
+			break
+		}
+	}
 	ui.renderer.Present()
+}
+
+func (ui *ui) displayStats(level *game.Level) {
+	if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 32, Y: 0, W: 32, H: 32}, &sdl.Rect{0, int32(ui.winHeight / 2), 32, 32}); err != nil {
+		panic(err)
+	}
+
+	tex := ui.stringToTexture("Life "+strconv.Itoa(level.Player.Hitpoints), sdl.Color{255, 0, 0, 0}, FontSmall)
+	_, _, w, h, _ := tex.Query()
+	ui.renderer.Copy(tex, nil, &sdl.Rect{32, int32(ui.winHeight / 2), w, h})
+}
+
+func (ui *ui) GetSinglePixel(color sdl.Color) *sdl.Texture {
+	tex, err := ui.renderer.CreateTexture(sdl.PIXELFORMAT_ABGR8888, sdl.TEXTUREACCESS_STATIC, 1, 1)
+	if err != nil {
+		panic(err)
+	}
+
+	pixels := []byte{color.R, color.G, color.B, color.A}
+	err = tex.Update(nil, unsafe.Pointer(&pixels[0]), 4)
+	if err != nil {
+		panic(err)
+	}
+	return tex
 }
 
 func (ui *ui) Run() {
@@ -226,8 +349,6 @@ func (ui *ui) Run() {
 					input = game.Input{Typ: game.Left}
 				case sdl.K_RIGHT:
 					input = game.Input{Typ: game.Right}
-				case sdl.K_s:
-					input = game.Input{Typ: game.Search}
 				default:
 					input = game.Input{Typ: game.None}
 				}
@@ -238,6 +359,6 @@ func (ui *ui) Run() {
 			}
 
 		}
-		sdl.Delay(10)
+		sdl.Delay(1)
 	}
 }
