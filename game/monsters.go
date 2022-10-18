@@ -1,9 +1,5 @@
 package game
 
-import (
-	"fmt"
-)
-
 type Monster struct {
 	Character
 }
@@ -60,14 +56,12 @@ func (m *Monster) Move(to Pos, level *Level) {
 	}
 
 	if to == level.Player.Pos {
-		Attack(m, level.Player)
-		level.AddEvent(fmt.Sprintf("Monster %v attacked %v doing %v damage", m.Name, level.Player.Name, m.Strength))
+		level.Attack(&m.Character, &level.Player.Character)
+
 		if m.Hitpoints <= 0 {
 			delete(level.Monsters, m.Pos)
-			level.AddEvent(fmt.Sprintf("Monster %v is dead", m.Name))
 		}
 		if level.Player.Hitpoints <= 0 {
-			fmt.Println("you are dead !")
 			panic("You are dead")
 		}
 	}

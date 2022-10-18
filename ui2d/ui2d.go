@@ -21,7 +21,7 @@ type ui struct {
 	renderer                                  *sdl.Renderer
 	window                                    *sdl.Window
 	textureAtlas                              *sdl.Texture
-	textureIndex                              map[game.Tile][]sdl.Rect
+	textureIndex                              map[rune][]sdl.Rect
 	centerX, centerY                          int
 	r                                         *rand.Rand
 	levelChan                                 chan *game.Level
@@ -74,7 +74,10 @@ func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 	}
 
 	ui.eventBackground = ui.GetSinglePixel(sdl.Color{0, 0, 0, 128})
-	ui.eventBackground.SetBlendMode(sdl.BLENDMODE_BLEND)
+	err = ui.eventBackground.SetBlendMode(sdl.BLENDMODE_BLEND)
+	if err != nil {
+		panic(err)
+	}
 	return ui
 }
 
@@ -130,7 +133,7 @@ func (ui *ui) stringToTexture(s string, color sdl.Color, size FontSize) *sdl.Tex
 }
 
 func (ui *ui) loadTextureIndex() {
-	ui.textureIndex = make(map[game.Tile][]sdl.Rect)
+	ui.textureIndex = make(map[rune][]sdl.Rect)
 	infile, err := os.Open("ui2d/assets/atlas-index.txt")
 	if err != nil {
 		panic(err)
@@ -139,7 +142,7 @@ func (ui *ui) loadTextureIndex() {
 	for scanner.Scan() {
 		line := scanner.Text()
 		line = strings.TrimSpace(line)
-		tileRune := game.Tile(line[0])
+		tileRune := rune(line[0])
 		xy := line[1:]
 		splitXyC := strings.Split(xy, ",")
 		x, err := strconv.ParseInt(strings.TrimSpace(splitXyC[0]), 10, 64)
@@ -232,38 +235,38 @@ func (ui *ui) Draw(level *game.Level) {
 
 	for y, row := range level.Map {
 		for x, tile := range row {
-			if tile != game.Blank {
-				srcRects := ui.textureIndex[tile]
+			if tile.Rune != game.Blank {
+				srcRects := ui.textureIndex[tile.Rune]
 				srcRect := srcRects[ui.r.Intn(len(srcRects))]
-				dstRect := sdl.Rect{int32(x*32) + offsetX, int32(y*32) + offsetY, 32, 32}
-
-				pos := game.Pos{X: x, Y: y}
-				if level.Debug[pos] {
-					err := ui.textureAtlas.SetColorMod(128, 0, 0)
-					if err != nil {
-						panic(err)
+				if tile.Visible {
+					dstRect := sdl.Rect{int32(x*32) + offsetX, int32(y*32) + offsetY, 32, 32}
+					pos := game.Pos{X: x, Y: y}
+					if level.Debug[pos] {
+						err := ui.textureAtlas.SetColorMod(128, 0, 0)
+						if err != nil {
+							panic(err)
+						}
+					} else {
+						err := ui.textureAtlas.SetColorMod(255, 255, 255)
+						if err != nil {
+							panic(err)
+						}
 					}
-				} else {
-					err := ui.textureAtlas.SetColorMod(255, 255, 255)
-					if err != nil {
+					if err := ui.renderer.Copy(ui.textureAtlas, &srcRect, &dstRect); err != nil {
 						panic(err)
 					}
 				}
-
-				if err := ui.renderer.Copy(ui.textureAtlas, &srcRect, &dstRect); err != nil {
-					panic(err)
-				}
-
 			}
 		}
 	}
 
 	for pos, monster := range level.Monsters {
-		monsterSrcRect := ui.textureIndex[game.Tile(monster.Rune)][0]
-
-		err := ui.renderer.Copy(ui.textureAtlas, &monsterSrcRect, &sdl.Rect{int32(pos.X*32) + offsetX, int32(pos.Y*32) + offsetY, 32, 32})
-		if err != nil {
-			panic(err)
+		if level.Map[pos.Y][pos.X].Visible {
+			monsterSrcRect := ui.textureIndex[monster.Rune][0]
+			err := ui.renderer.Copy(ui.textureAtlas, &monsterSrcRect, &sdl.Rect{int32(pos.X*32) + offsetX, int32(pos.Y*32) + offsetY, 32, 32})
+			if err != nil {
+				panic(err)
+			}
 		}
 	}
 	playerSrcRect := ui.textureIndex['@'][0]
@@ -273,7 +276,7 @@ func (ui *ui) Draw(level *game.Level) {
 
 	ui.displayStats(level)
 
-	textStart := int32(float64(ui.winHeight) * .75)
+	textStart := int32(float64(ui.winHeight) * .68)
 	textWidth := int32(float64(ui.winWidth) * .35)
 	err = ui.renderer.Copy(ui.eventBackground, nil, &sdl.Rect{X: 0, Y: textStart, W: textWidth, H: int32(ui.winHeight) - textStart})
 	if err != nil {
@@ -363,6 +366,8 @@ func (ui *ui) Run() {
 					input = game.Input{Typ: game.Left}
 				case sdl.K_RIGHT:
 					input = game.Input{Typ: game.Right}
+				case sdl.K_e:
+					input = game.Input{Typ: game.Search}
 				default:
 					input = game.Input{Typ: game.None}
 				}
