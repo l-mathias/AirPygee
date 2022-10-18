@@ -1,6 +1,8 @@
 package game
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type Monster struct {
 	Character
@@ -10,7 +12,7 @@ func NewRat(p Pos) *Monster {
 	return &Monster{Character{
 		Entity:       Entity{p, "Rat", 'R'},
 		Hitpoints:    50,
-		Strength:     0,
+		Strength:     1,
 		Speed:        2.0,
 		ActionPoints: 0.0,
 	}}
@@ -20,7 +22,7 @@ func NewSpider(p Pos) *Monster {
 	return &Monster{Character{
 		Entity:       Entity{p, "Spider", 'S'},
 		Hitpoints:    10,
-		Strength:     0,
+		Strength:     2,
 		Speed:        1.0,
 		ActionPoints: 0.0,
 	}}

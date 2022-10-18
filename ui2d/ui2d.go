@@ -1,5 +1,8 @@
 package ui2d
 
+//TODO - add damage on top of character when combat
+//TODO - add Player character selection
+
 import (
 	"AirPygee/game"
 	"bufio"
@@ -57,7 +60,7 @@ func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 	ui.centerX = -1
 	ui.centerY = -1
 
-	ui.fontSmall, err = ttf.OpenFont("ui2d/assets/Kingthings_Foundation.ttf", 18)
+	ui.fontSmall, err = ttf.OpenFont("ui2d/assets/Kingthings_Foundation.ttf", int(float64(ui.winWidth)*0.015))
 	if err != nil {
 		panic(err)
 	}
@@ -271,17 +274,25 @@ func (ui *ui) Draw(level *game.Level) {
 	ui.displayStats(level)
 
 	textStart := int32(float64(ui.winHeight) * .75)
-	textWidth := int32(float64(ui.winWidth) * .30)
-	ui.renderer.Copy(ui.eventBackground, nil, &sdl.Rect{X: 0, Y: textStart, W: textWidth, H: int32(ui.winHeight) - textStart})
+	textWidth := int32(float64(ui.winWidth) * .35)
+	err = ui.renderer.Copy(ui.eventBackground, nil, &sdl.Rect{X: 0, Y: textStart, W: textWidth, H: int32(ui.winHeight) - textStart})
+	if err != nil {
+		panic(err)
+	}
 
 	i := level.EventPos
 	count := 0
+	_, fontSizeY, _ := ui.fontSmall.SizeUTF8("A")
 	for {
 		event := level.Events[i]
 		if event != "" {
 			tex := ui.stringToTexture(event, sdl.Color{255, 0, 0, 0}, FontSmall)
 			_, _, w, h, _ := tex.Query()
-			ui.renderer.Copy(tex, nil, &sdl.Rect{0, int32(count)*18 + textStart, w, h})
+			err := ui.renderer.Copy(tex, nil, &sdl.Rect{0, int32(count*fontSizeY) + textStart, w, h})
+			if err != nil {
+				panic(err)
+			}
+
 		}
 		i = (i + 1) % (len(level.Events))
 		count++
@@ -299,7 +310,10 @@ func (ui *ui) displayStats(level *game.Level) {
 
 	tex := ui.stringToTexture("Life "+strconv.Itoa(level.Player.Hitpoints), sdl.Color{255, 0, 0, 0}, FontSmall)
 	_, _, w, h, _ := tex.Query()
-	ui.renderer.Copy(tex, nil, &sdl.Rect{32, int32(ui.winHeight / 2), w, h})
+	err := ui.renderer.Copy(tex, nil, &sdl.Rect{32, int32(ui.winHeight / 2), w, h})
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (ui *ui) GetSinglePixel(color sdl.Color) *sdl.Texture {

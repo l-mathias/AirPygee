@@ -72,6 +72,7 @@ type Character struct {
 type Player struct {
 	Character
 }
+
 type Level struct {
 	Map      [][]Tile
 	Player   *Player
@@ -238,7 +239,7 @@ func LoadLevelFromFile(fileName string) *Level {
 	level := &Level{}
 	level.Events = make([]string, 10)
 	level.Player = &Player{Character{
-		Entity:       Entity{Name: "Elise", Rune: '@'},
+		Entity:       Entity{Name: "Wizard", Rune: '@'},
 		Hitpoints:    20,
 		Strength:     20,
 		Speed:        1.0,
