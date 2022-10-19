@@ -276,6 +276,10 @@ func (ui *ui) Draw(level *game.Level) {
 	}
 	for pos, monster := range level.Monsters {
 		if level.Map[pos.Y][pos.X].Visible {
+
+			if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 928, Y: 1600, W: 32, H: 32}, &sdl.Rect{int32(level.Monsters[pos].X*32) + offsetX, int32((level.Monsters[pos].Y-1)*32) + offsetY + 20, 32, 5}); err != nil {
+				panic(err)
+			}
 			var gauge float64
 			gauge = float64(level.Monsters[pos].Hitpoints) / float64(level.Monsters[pos].MaxHitpoints)
 
@@ -342,6 +346,9 @@ func (ui *ui) displayStats(level *game.Level, offsetX, offsetY int32) {
 	var gauge float64
 	gauge = float64(level.Player.Hitpoints) / float64(level.Player.MaxHitpoints)
 
+	if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 928, Y: 1600, W: 32, H: 32}, &sdl.Rect{int32(level.Player.Pos.X*32) + offsetX, int32((level.Player.Pos.Y-1)*32) + offsetY + 20, 32, 5}); err != nil {
+		panic(err)
+	}
 	if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 1024, Y: 1600, W: 32, H: 32}, &sdl.Rect{int32(level.Player.Pos.X*32) + offsetX, int32((level.Player.Pos.Y-1)*32) + offsetY + 20, int32(32 * gauge), 5}); err != nil {
 		panic(err)
 	}
