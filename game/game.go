@@ -2,8 +2,11 @@ package game
 
 import (
 	"bufio"
+	"encoding/csv"
+	"fmt"
 	"math"
 	"os"
+	"path/filepath"
 	"strconv"
 )
 
@@ -19,19 +22,24 @@ const (
 )
 
 type Game struct {
-	LevelChans []chan *Level
-	InputChan  chan *Input
-	Level      *Level
+	LevelChans   []chan *Level
+	InputChan    chan *Input
+	Levels       map[string]*Level
+	CurrentLevel *Level
 }
 
-func NewGame(numWindows int, levelPath string) *Game {
+func NewGame(numWindows int) *Game {
 	levelChans := make([]chan *Level, numWindows)
 	for i := range levelChans {
 		levelChans[i] = make(chan *Level)
 	}
 	inputChan := make(chan *Input, 10)
 
-	return &Game{levelChans, inputChan, LoadLevelFromFile(levelPath)}
+	levels := loadLevels()
+	game := &Game{levelChans, inputChan, levels, nil}
+	game.loadWorld()
+	game.CurrentLevel.lineOfSight()
+	return game
 }
 
 type InputType int
@@ -53,6 +61,8 @@ const (
 	DirtFloor  rune = '.'
 	ClosedDoor rune = '|'
 	OpenDoor   rune = '/'
+	DownStair  rune = 'd'
+	UpStair    rune = 'u'
 	Blank      rune = 0
 	Pending    rune = -1
 )
@@ -60,6 +70,12 @@ const (
 type Pos struct {
 	X, Y int
 }
+
+type LevelPos struct {
+	*Level
+	Pos
+}
+
 type Entity struct {
 	Pos
 	Name string
@@ -84,6 +100,7 @@ type Level struct {
 	Map      [][]Tile
 	Player   *Player
 	Monsters map[Pos]*Monster
+	Portals  map[Pos]*LevelPos
 	Events   []string
 	EventPos int
 	Debug    map[Pos]bool
@@ -227,21 +244,25 @@ func canSeeTrough(level *Level, pos Pos) bool {
 	return false
 }
 
-func (player *Player) Move(to Pos, level *Level) {
-	player.Pos = to
-	for y, row := range level.Map {
-		for x, _ := range row {
-			// just adapt the loops and uncomment in order to get tiles invisible again after move
-			level.Map[y][x].Visible = false
-			//tile.Visible = false
+func (game *Game) Move(to Pos) {
+	level := game.CurrentLevel
+	portal := level.Portals[to]
+	if portal != nil {
+		game.CurrentLevel = portal.Level
+		game.CurrentLevel.Player.Pos = portal.Pos
+	} else {
+		level.Player.Pos = to
+		for y, row := range level.Map {
+			for x := range row {
+				level.Map[y][x].Visible = false
+			}
 		}
+		level.lineOfSight()
 	}
-
-	level.lineOfSight()
-
 }
 
-func (level *Level) resolveMovement(pos Pos) {
+func (game *Game) resolveMovement(pos Pos) {
+	level := game.CurrentLevel
 	monster, exists := level.Monsters[pos]
 	if exists {
 		level.Attack(&level.Player.Character, &monster.Character)
@@ -252,28 +273,27 @@ func (level *Level) resolveMovement(pos Pos) {
 			panic("You are dead")
 		}
 	} else if canWalk(level, pos) {
-		level.Player.Move(pos, level)
+		game.Move(pos)
 	} else {
 		checkDoor(level, pos)
 	}
 }
 
 func (game *Game) handleInput(input *Input) {
-	level := game.Level
-	p := level.Player
+	p := game.CurrentLevel.Player
 	switch input.Typ {
 	case Up:
 		newPos := Pos{p.X, p.Y - 1}
-		level.resolveMovement(newPos)
+		game.resolveMovement(newPos)
 	case Down:
 		newPos := Pos{p.X, p.Y + 1}
-		level.resolveMovement(newPos)
+		game.resolveMovement(newPos)
 	case Left:
 		newPos := Pos{p.X - 1, p.Y}
-		level.resolveMovement(newPos)
+		game.resolveMovement(newPos)
 	case Right:
 		newPos := Pos{p.X + 1, p.Y}
-		level.resolveMovement(newPos)
+		game.resolveMovement(newPos)
 	case CloseWindow:
 		close(input.LevelChannel)
 		chanIndex := 0
@@ -290,30 +310,8 @@ func (game *Game) handleInput(input *Input) {
 	}
 }
 
-func LoadLevelFromFile(fileName string) *Level {
-	file, err := os.Open(fileName)
-
-	if err != nil {
-		panic(err)
-	}
-
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	levelLines := make([]string, 0)
-	longestRow := 0
-	index := 0
-	for scanner.Scan() {
-		levelLines = append(levelLines, scanner.Text())
-		if len(levelLines[index]) > longestRow {
-			longestRow = len(levelLines[index])
-		}
-		index++
-	}
-
-	level := &Level{}
-	level.Events = make([]string, 10)
-	level.Player = &Player{Character{
+func NewPlayer() *Player {
+	return &Player{Character{
 		Entity:       Entity{Name: "Wizard", Rune: '@'},
 		Hitpoints:    20,
 		MaxHitpoints: 20,
@@ -322,54 +320,159 @@ func LoadLevelFromFile(fileName string) *Level {
 		ActionPoints: 0,
 		SightRange:   10,
 	}}
-	level.Map = make([][]Tile, len(levelLines))
-	level.Monsters = make(map[Pos]*Monster)
+}
 
-	for i := range level.Map {
-		level.Map[i] = make([]Tile, longestRow)
+func (game *Game) loadWorld() {
+	file, err := os.Open("game/maps/world.txt")
+	if err != nil {
+		panic(err)
 	}
 
-	for y := range levelLines {
-		line := levelLines[y]
-		for x, c := range line {
-			switch c {
-			case ' ', '\n', '\t', '\r':
-				level.Map[y][x].Rune = Blank
-			case '#':
-				level.Map[y][x].Rune = StoneWall
-			case '.':
-				level.Map[y][x].Rune = DirtFloor
-			case '|':
-				level.Map[y][x].OverlayRune = ClosedDoor
-				level.Map[y][x].Rune = Pending
-			case '/':
-				level.Map[y][x].OverlayRune = OpenDoor
-				level.Map[y][x].Rune = Pending
-			case '@':
-				level.Player.X = x
-				level.Player.Y = y
-				level.Map[y][x].Rune = Pending
-			case 'R':
-				level.Monsters[Pos{x, y}] = NewRat(Pos{x, y})
-				level.Map[y][x].Rune = Pending
-			case 'S':
-				level.Monsters[Pos{x, y}] = NewSpider(Pos{x, y})
-				level.Map[y][x].Rune = Pending
-			default:
-				panic("invalid character in map")
+	csvReader := csv.NewReader(file)
+	csvReader.FieldsPerRecord = -1
+	csvReader.TrimLeadingSpace = true
+	rows, err := csvReader.ReadAll()
+	if err != nil {
+		panic(err)
+	}
+
+	for rIndex, row := range rows {
+		if rIndex == 0 {
+			game.CurrentLevel = game.Levels[row[0]]
+			if game.CurrentLevel == nil {
+				fmt.Println("could'nt find level in world file")
+				panic(nil)
 			}
+			continue
+		}
+		levelWithPortal := game.Levels[row[0]]
+		if levelWithPortal == nil {
+			fmt.Println("could'nt find level in world file")
+			panic(nil)
+		}
+		x, err := strconv.Atoi(row[1])
+		if err != nil {
+			panic(err)
+		}
+		y, err := strconv.Atoi(row[2])
+		if err != nil {
+			panic(err)
+		}
+
+		pos := Pos{x, y}
+
+		levelToTeleport := row[3]
+
+		x, err = strconv.Atoi(row[4])
+		if err != nil {
+			panic(err)
+		}
+		y, err = strconv.Atoi(row[5])
+		if err != nil {
+			panic(err)
+		}
+
+		posToTeleport := Pos{x, y}
+
+		levelWithPortal.Portals[pos] = &LevelPos{
+			Level: game.Levels[levelToTeleport],
+			Pos:   posToTeleport,
 		}
 	}
+}
 
-	for y, row := range level.Map {
-		for x, tile := range row {
-			if tile.Rune == Pending {
-				level.Map[y][x].Rune = level.bfsFloor(Pos{x, y})
+func loadLevels() map[string]*Level {
+	player := NewPlayer()
+
+	levels := make(map[string]*Level, 0)
+
+	fileNames, err := filepath.Glob("game/maps/*.map")
+	if err != nil {
+		panic(err)
+	}
+
+	for _, fileName := range fileNames {
+		levelName := filepath.Base(fileName[:len(fileName)-len(filepath.Ext(fileName))])
+
+		file, err := os.Open(fileName)
+
+		if err != nil {
+			panic(err)
+		}
+
+		defer file.Close()
+
+		scanner := bufio.NewScanner(file)
+		levelLines := make([]string, 0)
+		longestRow := 0
+		index := 0
+		for scanner.Scan() {
+			levelLines = append(levelLines, scanner.Text())
+			if len(levelLines[index]) > longestRow {
+				longestRow = len(levelLines[index])
+			}
+			index++
+		}
+
+		level := &Level{}
+		level.Events = make([]string, 10)
+		level.Player = player
+		level.Map = make([][]Tile, len(levelLines))
+		level.Monsters = make(map[Pos]*Monster)
+		level.Portals = make(map[Pos]*LevelPos)
+
+		for i := range level.Map {
+			level.Map[i] = make([]Tile, longestRow)
+		}
+
+		for y := range levelLines {
+			line := levelLines[y]
+			for x, c := range line {
+				switch c {
+				case ' ', '\n', '\t', '\r':
+					level.Map[y][x].Rune = Blank
+				case '#':
+					level.Map[y][x].Rune = StoneWall
+				case '.':
+					level.Map[y][x].Rune = DirtFloor
+				case '|':
+					level.Map[y][x].OverlayRune = ClosedDoor
+					level.Map[y][x].Rune = Pending
+				case '/':
+					level.Map[y][x].OverlayRune = OpenDoor
+					level.Map[y][x].Rune = Pending
+				case 'd':
+					level.Map[y][x].OverlayRune = DownStair
+					level.Map[y][x].Rune = Pending
+				case 'u':
+					level.Map[y][x].OverlayRune = UpStair
+					level.Map[y][x].Rune = Pending
+				case '@':
+					level.Player.X = x
+					level.Player.Y = y
+					level.Map[y][x].Rune = Pending
+				case 'R':
+					level.Monsters[Pos{x, y}] = NewRat(Pos{x, y})
+					level.Map[y][x].Rune = Pending
+				case 'S':
+					level.Monsters[Pos{x, y}] = NewSpider(Pos{x, y})
+					level.Map[y][x].Rune = Pending
+				default:
+					panic("invalid character in map")
+				}
 			}
 		}
+
+		for y, row := range level.Map {
+			for x, tile := range row {
+				if tile.Rune == Pending {
+					level.Map[y][x].Rune = level.bfsFloor(Pos{x, y})
+				}
+			}
+		}
+		levels[levelName] = level
 	}
-	level.lineOfSight()
-	return level
+	return levels
 }
 
 func getNeighbors(level *Level, pos Pos) []Pos {
@@ -478,7 +581,7 @@ func (level *Level) astar(start Pos, goal Pos) []Pos {
 func (game *Game) Run() {
 
 	for _, lchan := range game.LevelChans {
-		lchan <- game.Level
+		lchan <- game.CurrentLevel
 	}
 
 	for input := range game.InputChan {
@@ -487,8 +590,8 @@ func (game *Game) Run() {
 		}
 		game.handleInput(input)
 
-		for _, monster := range game.Level.Monsters {
-			monster.Update(game.Level)
+		for _, monster := range game.CurrentLevel.Monsters {
+			monster.Update(game.CurrentLevel)
 		}
 
 		if len(game.LevelChans) == 0 {
@@ -496,7 +599,7 @@ func (game *Game) Run() {
 		}
 
 		for _, lchan := range game.LevelChans {
-			lchan <- game.Level
+			lchan <- game.CurrentLevel
 		}
 
 	}

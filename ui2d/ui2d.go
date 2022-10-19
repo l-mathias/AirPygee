@@ -2,7 +2,7 @@ package ui2d
 
 //TODO - add damage on top of character when combat
 //TODO - add Player character selection
-//TODO - add life gauge on top of monsters and player
+//TODO - improve life gauge using shading
 //TODO - Improve fog of war effect using transparent texture or special tiles
 
 import (
@@ -332,10 +332,12 @@ func (ui *ui) Draw(level *game.Level) {
 }
 
 func (ui *ui) displayStats(level *game.Level, offsetX, offsetY int32) {
+	// Life symbol
 	if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 32, Y: 0, W: 32, H: 32}, &sdl.Rect{0, int32(ui.winHeight / 2), 32, 32}); err != nil {
 		panic(err)
 	}
 
+	// Drawing Hitpoints count
 	tex := ui.stringToTexture("Life "+strconv.Itoa(level.Player.Hitpoints), sdl.Color{255, 0, 0, 0}, FontSmall)
 	_, _, w, h, _ := tex.Query()
 	err := ui.renderer.Copy(tex, nil, &sdl.Rect{32, int32(ui.winHeight / 2), w, h})
@@ -343,12 +345,14 @@ func (ui *ui) displayStats(level *game.Level, offsetX, offsetY int32) {
 		panic(err)
 	}
 
-	var gauge float64
-	gauge = float64(level.Player.Hitpoints) / float64(level.Player.MaxHitpoints)
-
+	// Life gauge using red rect on black rect
 	if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 928, Y: 1600, W: 32, H: 32}, &sdl.Rect{int32(level.Player.Pos.X*32) + offsetX, int32((level.Player.Pos.Y-1)*32) + offsetY + 20, 32, 5}); err != nil {
 		panic(err)
 	}
+
+	var gauge float64
+	gauge = float64(level.Player.Hitpoints) / float64(level.Player.MaxHitpoints)
+
 	if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 1024, Y: 1600, W: 32, H: 32}, &sdl.Rect{int32(level.Player.Pos.X*32) + offsetX, int32((level.Player.Pos.Y-1)*32) + offsetY + 20, int32(32 * gauge), 5}); err != nil {
 		panic(err)
 	}
