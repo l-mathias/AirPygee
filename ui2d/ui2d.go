@@ -2,6 +2,8 @@ package ui2d
 
 //TODO - add damage on top of character when combat
 //TODO - add Player character selection
+//TODO - add life gauge on top of monsters and player
+//TODO - Improve fog of war effect using transparent texture or special tiles
 
 import (
 	"AirPygee/game"
@@ -232,36 +234,55 @@ func (ui *ui) Draw(level *game.Level) {
 		panic(err)
 	}
 	ui.r.Seed(1)
-
 	for y, row := range level.Map {
 		for x, tile := range row {
 			if tile.Rune != game.Blank {
 				srcRects := ui.textureIndex[tile.Rune]
 				srcRect := srcRects[ui.r.Intn(len(srcRects))]
-				if tile.Visible {
+				if tile.Visible || tile.Seen {
 					dstRect := sdl.Rect{int32(x*32) + offsetX, int32(y*32) + offsetY, 32, 32}
 					pos := game.Pos{X: x, Y: y}
 					if level.Debug[pos] {
-						err := ui.textureAtlas.SetColorMod(128, 0, 0)
-						if err != nil {
+						if err := ui.textureAtlas.SetColorMod(128, 0, 0); err != nil {
+							panic(err)
+						}
+					} else if tile.Seen && !tile.Visible {
+						if err := ui.textureAtlas.SetColorMod(128, 128, 128); err != nil {
 							panic(err)
 						}
 					} else {
-						err := ui.textureAtlas.SetColorMod(255, 255, 255)
-						if err != nil {
+						if err := ui.textureAtlas.SetColorMod(255, 255, 255); err != nil {
 							panic(err)
 						}
 					}
 					if err := ui.renderer.Copy(ui.textureAtlas, &srcRect, &dstRect); err != nil {
 						panic(err)
 					}
+
+					if tile.OverlayRune != game.Blank {
+						// TODO - if multiple variants of a tile, adapt srcRects
+						srcRect := ui.textureIndex[tile.OverlayRune][0]
+						if err := ui.renderer.Copy(ui.textureAtlas, &srcRect, &dstRect); err != nil {
+							panic(err)
+						}
+					}
 				}
 			}
 		}
 	}
 
+	if err := ui.textureAtlas.SetColorMod(255, 255, 255); err != nil {
+		panic(err)
+	}
 	for pos, monster := range level.Monsters {
 		if level.Map[pos.Y][pos.X].Visible {
+			var gauge float64
+			gauge = float64(level.Monsters[pos].Hitpoints) / float64(level.Monsters[pos].MaxHitpoints)
+
+			if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 1024, Y: 1600, W: 32, H: 32}, &sdl.Rect{int32(level.Monsters[pos].X*32) + offsetX, int32((level.Monsters[pos].Y-1)*32) + offsetY + 20, int32(32 * gauge), 5}); err != nil {
+				panic(err)
+			}
+
 			monsterSrcRect := ui.textureIndex[monster.Rune][0]
 			err := ui.renderer.Copy(ui.textureAtlas, &monsterSrcRect, &sdl.Rect{int32(pos.X*32) + offsetX, int32(pos.Y*32) + offsetY, 32, 32})
 			if err != nil {
@@ -274,10 +295,10 @@ func (ui *ui) Draw(level *game.Level) {
 		panic(err)
 	}
 
-	ui.displayStats(level)
+	ui.displayStats(level, offsetX, offsetY)
 
 	textStart := int32(float64(ui.winHeight) * .68)
-	textWidth := int32(float64(ui.winWidth) * .35)
+	textWidth := int32(float64(ui.winWidth) * .25)
 	err = ui.renderer.Copy(ui.eventBackground, nil, &sdl.Rect{X: 0, Y: textStart, W: textWidth, H: int32(ui.winHeight) - textStart})
 	if err != nil {
 		panic(err)
@@ -306,7 +327,7 @@ func (ui *ui) Draw(level *game.Level) {
 	ui.renderer.Present()
 }
 
-func (ui *ui) displayStats(level *game.Level) {
+func (ui *ui) displayStats(level *game.Level, offsetX, offsetY int32) {
 	if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 32, Y: 0, W: 32, H: 32}, &sdl.Rect{0, int32(ui.winHeight / 2), 32, 32}); err != nil {
 		panic(err)
 	}
@@ -317,6 +338,14 @@ func (ui *ui) displayStats(level *game.Level) {
 	if err != nil {
 		panic(err)
 	}
+
+	var gauge float64
+	gauge = float64(level.Player.Hitpoints) / float64(level.Player.MaxHitpoints)
+
+	if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 1024, Y: 1600, W: 32, H: 32}, &sdl.Rect{int32(level.Player.Pos.X*32) + offsetX, int32((level.Player.Pos.Y-1)*32) + offsetY + 20, int32(32 * gauge), 5}); err != nil {
+		panic(err)
+	}
+
 }
 
 func (ui *ui) GetSinglePixel(color sdl.Color) *sdl.Texture {

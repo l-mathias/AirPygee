@@ -8,6 +8,7 @@ func NewRat(p Pos) *Monster {
 	return &Monster{Character{
 		Entity:       Entity{p, "Rat", 'R'},
 		Hitpoints:    50,
+		MaxHitpoints: 50,
 		Strength:     1,
 		Speed:        2.0,
 		ActionPoints: 0.0,
@@ -18,6 +19,7 @@ func NewSpider(p Pos) *Monster {
 	return &Monster{Character{
 		Entity:       Entity{p, "Spider", 'S'},
 		Hitpoints:    10,
+		MaxHitpoints: 10,
 		Strength:     2,
 		Speed:        1.0,
 		ActionPoints: 0.0,

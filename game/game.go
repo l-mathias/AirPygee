@@ -37,9 +37,10 @@ func NewGame(numWindows int, levelPath string) *Game {
 type InputType int
 
 type Tile struct {
-	Rune    rune
-	Visible bool
-	Seen    bool
+	Rune        rune
+	OverlayRune rune
+	Visible     bool
+	Seen        bool
 }
 
 type Input struct {
@@ -68,6 +69,7 @@ type Entity struct {
 type Character struct {
 	Entity
 	Hitpoints    int
+	MaxHitpoints int
 	Strength     int
 	Speed        float64
 	ActionPoints float64
@@ -192,8 +194,8 @@ func inRange(level *Level, pos Pos) bool {
 func canWalk(level *Level, pos Pos) bool {
 	if inRange(level, pos) {
 		t := level.Map[pos.Y][pos.X]
-		switch t.Rune {
-		case ClosedDoor, StoneWall, Blank:
+		switch {
+		case t.Rune == ClosedDoor, t.Rune == StoneWall, t.Rune == Blank, t.OverlayRune == ClosedDoor:
 			return false
 		}
 		_, exists := level.Monsters[pos]
@@ -206,8 +208,8 @@ func canWalk(level *Level, pos Pos) bool {
 }
 
 func checkDoor(level *Level, pos Pos) {
-	if level.Map[pos.Y][pos.X].Rune == ClosedDoor {
-		level.Map[pos.Y][pos.X].Rune = OpenDoor
+	if level.Map[pos.Y][pos.X].OverlayRune == ClosedDoor {
+		level.Map[pos.Y][pos.X].OverlayRune = OpenDoor
 		level.lineOfSight()
 	}
 }
@@ -215,8 +217,8 @@ func checkDoor(level *Level, pos Pos) {
 func canSeeTrough(level *Level, pos Pos) bool {
 	if inRange(level, pos) {
 		t := level.Map[pos.Y][pos.X]
-		switch t.Rune {
-		case ClosedDoor, StoneWall, Blank:
+		switch {
+		case t.Rune == ClosedDoor, t.Rune == StoneWall, t.Rune == Blank, t.OverlayRune == ClosedDoor:
 			return false
 		default:
 			return true
@@ -227,11 +229,11 @@ func canSeeTrough(level *Level, pos Pos) bool {
 
 func (player *Player) Move(to Pos, level *Level) {
 	player.Pos = to
-	for _, row := range level.Map {
-		for _, tile := range row {
+	for y, row := range level.Map {
+		for x, _ := range row {
 			// just adapt the loops and uncomment in order to get tiles invisible again after move
-			//level.Map[y][x].Visible = false
-			tile.Visible = false
+			level.Map[y][x].Visible = false
+			//tile.Visible = false
 		}
 	}
 
@@ -314,6 +316,7 @@ func LoadLevelFromFile(fileName string) *Level {
 	level.Player = &Player{Character{
 		Entity:       Entity{Name: "Wizard", Rune: '@'},
 		Hitpoints:    20,
+		MaxHitpoints: 20,
 		Strength:     20,
 		Speed:        1.0,
 		ActionPoints: 0,
@@ -337,9 +340,11 @@ func LoadLevelFromFile(fileName string) *Level {
 			case '.':
 				level.Map[y][x].Rune = DirtFloor
 			case '|':
-				level.Map[y][x].Rune = ClosedDoor
+				level.Map[y][x].OverlayRune = ClosedDoor
+				level.Map[y][x].Rune = Pending
 			case '/':
-				level.Map[y][x].Rune = OpenDoor
+				level.Map[y][x].OverlayRune = OpenDoor
+				level.Map[y][x].Rune = Pending
 			case '@':
 				level.Player.X = x
 				level.Player.Y = y
@@ -359,7 +364,7 @@ func LoadLevelFromFile(fileName string) *Level {
 	for y, row := range level.Map {
 		for x, tile := range row {
 			if tile.Rune == Pending {
-				level.Map[y][x] = level.bfsFloor(Pos{x, y})
+				level.Map[y][x].Rune = level.bfsFloor(Pos{x, y})
 			}
 		}
 	}
@@ -389,7 +394,7 @@ func getNeighbors(level *Level, pos Pos) []Pos {
 	return neighbors
 }
 
-func (level *Level) bfsFloor(start Pos) Tile {
+func (level *Level) bfsFloor(start Pos) rune {
 	frontier := make([]Pos, 0, 8)
 	frontier = append(frontier, start)
 	visited := make(map[Pos]bool)
@@ -403,7 +408,7 @@ func (level *Level) bfsFloor(start Pos) Tile {
 		currentTile := level.Map[current.Y][current.X]
 		switch currentTile.Rune {
 		case DirtFloor:
-			return Tile{DirtFloor, false, false}
+			return DirtFloor
 		default:
 		}
 
@@ -415,7 +420,7 @@ func (level *Level) bfsFloor(start Pos) Tile {
 			}
 		}
 	}
-	return Tile{DirtFloor, false, false}
+	return DirtFloor
 }
 
 func (level *Level) astar(start Pos, goal Pos) []Pos {
