@@ -10,6 +10,8 @@ import (
 	"strconv"
 )
 
+// TODO - improve loadWorld loadLevels - one should call the other one
+
 const (
 	None InputType = iota
 	Up
@@ -245,19 +247,25 @@ func canSeeTrough(level *Level, pos Pos) bool {
 }
 
 func (game *Game) Move(to Pos) {
-	level := game.CurrentLevel
-	portal := level.Portals[to]
+	portal := game.CurrentLevel.Portals[to]
 	if portal != nil {
+		// transfer also events to new level
+		events := game.CurrentLevel.Events
+		eventPos := game.CurrentLevel.EventPos
+
 		game.CurrentLevel = portal.Level
 		game.CurrentLevel.Player.Pos = portal.Pos
+		game.CurrentLevel.Events = events
+		game.CurrentLevel.EventPos = eventPos
+		game.CurrentLevel.lineOfSight()
 	} else {
-		level.Player.Pos = to
-		for y, row := range level.Map {
+		game.CurrentLevel.Player.Pos = to
+		for y, row := range game.CurrentLevel.Map {
 			for x := range row {
-				level.Map[y][x].Visible = false
+				game.CurrentLevel.Map[y][x].Visible = false
 			}
 		}
-		level.lineOfSight()
+		game.CurrentLevel.lineOfSight()
 	}
 }
 

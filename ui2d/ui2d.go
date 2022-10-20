@@ -211,12 +211,13 @@ func init() {
 }
 
 func (ui *ui) Draw(level *game.Level) {
-	if ui.centerX == -1 && ui.centerY == -1 {
+	if ui.centerX == -1 && ui.centerY == -1 || level.Portals[level.Player.Pos] != nil {
 		ui.centerX = level.Player.X
 		ui.centerY = level.Player.Y
 	}
 
 	limit := 5
+
 	if level.Player.X > ui.centerX+limit {
 		ui.centerX++
 	} else if level.Player.X < ui.centerX-limit {
