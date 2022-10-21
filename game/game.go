@@ -10,7 +10,7 @@ import (
 	"strconv"
 )
 
-// TODO - improve loadWorld loadLevels - one should call the other one
+//TODO - improve loadWorld loadLevels - one should call the other one
 
 const (
 	None InputType = iota
@@ -37,10 +37,8 @@ func NewGame(numWindows int) *Game {
 	}
 	inputChan := make(chan *Input, 10)
 
-	levels := loadLevels()
-	game := &Game{levelChans, inputChan, levels, nil}
-	game.loadWorld()
-	game.CurrentLevel.lineOfSight()
+	game := &Game{levelChans, inputChan, nil, nil}
+
 	return game
 }
 
@@ -247,8 +245,9 @@ func canSeeTrough(level *Level, pos Pos) bool {
 }
 
 func (game *Game) Move(to Pos) {
-	portal := game.CurrentLevel.Portals[to]
-	if portal != nil {
+	level := game.CurrentLevel
+	portal := level.Portals[to]
+	if game.CurrentLevel.Portals[to] != nil {
 		// transfer also events to new level
 		events := game.CurrentLevel.Events
 		eventPos := game.CurrentLevel.EventPos
@@ -269,16 +268,26 @@ func (game *Game) Move(to Pos) {
 	}
 }
 
+func (game *Game) restart() {
+	game.Levels = game.loadLevels()
+	game.loadWorld()
+	game.CurrentLevel.lineOfSight()
+}
+
+func (game *Game) dead() {
+	game.restart()
+}
+
 func (game *Game) resolveMovement(pos Pos) {
 	level := game.CurrentLevel
-	monster, exists := level.Monsters[pos]
+	monster, exists := game.CurrentLevel.Monsters[pos]
 	if exists {
-		level.Attack(&level.Player.Character, &monster.Character)
+		game.CurrentLevel.Attack(&level.Player.Character, &monster.Character)
 		if monster.Hitpoints <= 0 {
 			delete(level.Monsters, monster.Pos)
 		}
-		if level.Player.Hitpoints <= 0 {
-			panic("You are dead")
+		if game.CurrentLevel.Player.Hitpoints <= 0 {
+			game.dead()
 		}
 	} else if canWalk(level, pos) {
 		game.Move(pos)
@@ -333,7 +342,7 @@ func NewPlayer() *Player {
 func (game *Game) loadWorld() {
 	file, err := os.Open("game/maps/world.txt")
 	if err != nil {
-		panic(err)
+		game.dead()
 	}
 
 	csvReader := csv.NewReader(file)
@@ -389,7 +398,7 @@ func (game *Game) loadWorld() {
 	}
 }
 
-func loadLevels() map[string]*Level {
+func (game *Game) loadLevels() map[string]*Level {
 	player := NewPlayer()
 
 	levels := make(map[string]*Level, 0)
@@ -426,8 +435,8 @@ func loadLevels() map[string]*Level {
 		level.Events = make([]string, 10)
 		level.Player = player
 		level.Map = make([][]Tile, len(levelLines))
-		level.Monsters = make(map[Pos]*Monster)
-		level.Portals = make(map[Pos]*LevelPos)
+		level.Monsters = make(map[Pos]*Monster, 0)
+		level.Portals = make(map[Pos]*LevelPos, 0)
 
 		for i := range level.Map {
 			level.Map[i] = make([]Tile, longestRow)
@@ -587,6 +596,9 @@ func (level *Level) astar(start Pos, goal Pos) []Pos {
 }
 
 func (game *Game) Run() {
+	game.Levels = game.loadLevels()
+	game.loadWorld()
+	game.CurrentLevel.lineOfSight()
 
 	for _, lchan := range game.LevelChans {
 		lchan <- game.CurrentLevel
@@ -599,7 +611,11 @@ func (game *Game) Run() {
 		game.handleInput(input)
 
 		for _, monster := range game.CurrentLevel.Monsters {
-			monster.Update(game.CurrentLevel)
+			monster.Update(game)
+			if game.CurrentLevel.Player.Hitpoints <= 0 {
+				game.dead()
+				break
+			}
 		}
 
 		if len(game.LevelChans) == 0 {

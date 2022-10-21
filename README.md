@@ -8,9 +8,10 @@ AirPygee is a small golang rpg game using SDL2.
 
 - Random dungeon sprites generation
 - Character move
-
-And of course Dillinger itself is open source with a [public repository][dill]
-on GitHub.
+- Level editor
+- Levels interconnection
+- Monsters
+- Combat
 
 ## Build
 

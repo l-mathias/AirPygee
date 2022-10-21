@@ -7,8 +7,8 @@ type Monster struct {
 func NewRat(p Pos) *Monster {
 	return &Monster{Character{
 		Entity:       Entity{p, "Rat", 'R'},
-		Hitpoints:    50,
-		MaxHitpoints: 50,
+		Hitpoints:    500,
+		MaxHitpoints: 500,
 		Strength:     1,
 		Speed:        2.0,
 		ActionPoints: 0.0,
@@ -18,19 +18,19 @@ func NewRat(p Pos) *Monster {
 func NewSpider(p Pos) *Monster {
 	return &Monster{Character{
 		Entity:       Entity{p, "Spider", 'S'},
-		Hitpoints:    10,
-		MaxHitpoints: 10,
+		Hitpoints:    100,
+		MaxHitpoints: 100,
 		Strength:     2,
 		Speed:        1.0,
 		ActionPoints: 0.0,
 	}}
 }
 
-func (m *Monster) Update(level *Level) {
+func (m *Monster) Update(game *Game) {
 	m.ActionPoints += m.Speed
-	playerPos := level.Player.Pos
+	playerPos := game.CurrentLevel.Player.Pos
 	apInt := int(m.ActionPoints)
-	positions := level.astar(m.Pos, playerPos)
+	positions := game.CurrentLevel.astar(m.Pos, playerPos)
 
 	if len(positions) == 0 {
 		m.Pass()
@@ -40,7 +40,7 @@ func (m *Monster) Update(level *Level) {
 	moveIndex := 1
 	for i := 0; i < apInt; i++ {
 		if moveIndex < len(positions) {
-			m.Move(positions[moveIndex], level)
+			m.Move(positions[moveIndex], game)
 
 			moveIndex++
 			m.ActionPoints--
@@ -48,23 +48,20 @@ func (m *Monster) Update(level *Level) {
 	}
 }
 
-func (m *Monster) Move(to Pos, level *Level) {
-	_, exists := level.Monsters[to]
-	if !exists && to != level.Player.Pos {
-		delete(level.Monsters, m.Pos)
-		level.Monsters[to] = m
+func (m *Monster) Move(to Pos, game *Game) {
+	_, exists := game.CurrentLevel.Monsters[to]
+	if !exists && to != game.CurrentLevel.Player.Pos {
+		delete(game.CurrentLevel.Monsters, m.Pos)
+		game.CurrentLevel.Monsters[to] = m
 		m.Pos = to
 		return
 	}
 
-	if to == level.Player.Pos {
-		level.Attack(&m.Character, &level.Player.Character)
+	if to == game.CurrentLevel.Player.Pos {
+		game.CurrentLevel.Attack(&m.Character, &game.CurrentLevel.Player.Character)
 
 		if m.Hitpoints <= 0 {
-			delete(level.Monsters, m.Pos)
-		}
-		if level.Player.Hitpoints <= 0 {
-			panic("You are dead")
+			delete(game.CurrentLevel.Monsters, m.Pos)
 		}
 	}
 

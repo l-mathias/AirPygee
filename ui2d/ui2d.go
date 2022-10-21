@@ -4,6 +4,7 @@ package ui2d
 //TODO - add Player character selection
 //TODO - improve life gauge using shading
 //TODO - Improve fog of war effect using transparent texture or special tiles
+//TODO - Fix UI bug when dead, should recenter camera
 
 import (
 	"AirPygee/game"
@@ -211,7 +212,7 @@ func init() {
 }
 
 func (ui *ui) Draw(level *game.Level) {
-	if ui.centerX == -1 && ui.centerY == -1 || level.Portals[level.Player.Pos] != nil {
+	if ui.centerX == -1 && ui.centerY == -1 {
 		ui.centerX = level.Player.X
 		ui.centerY = level.Player.Y
 	}
@@ -219,13 +220,17 @@ func (ui *ui) Draw(level *game.Level) {
 	limit := 5
 
 	if level.Player.X > ui.centerX+limit {
-		ui.centerX++
+		diff := level.Player.X - (ui.centerX + limit)
+		ui.centerX += diff
 	} else if level.Player.X < ui.centerX-limit {
-		ui.centerX--
+		diff := (ui.centerX - limit) - level.Player.X
+		ui.centerX -= diff
 	} else if level.Player.Y > ui.centerY+limit {
-		ui.centerY++
+		diff := level.Player.Y - (ui.centerY + limit)
+		ui.centerY += diff
 	} else if level.Player.Y < ui.centerY-limit {
-		ui.centerY--
+		diff := (ui.centerY - limit) - level.Player.Y
+		ui.centerY -= diff
 	}
 	offsetX := int32(ui.winWidth/2 - ui.centerX*32)
 	offsetY := int32(ui.winHeight/2 - ui.centerY*32)
