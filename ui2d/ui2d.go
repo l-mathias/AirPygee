@@ -492,8 +492,8 @@ func (ui *ui) Run() {
 						if newLevel.Player.CurrentFrame >= newLevel.Player.FramesY {
 							newLevel.Player.CurrentFrame = 0
 						}
-						sdl.Delay(50)
 					}
+					sdl.WaitEvent()
 				case game.DoorOpen:
 					playRandomSound(ui.sounds.openDoor, soundsVolume)
 				case game.Attack:
@@ -540,6 +540,6 @@ func (ui *ui) Run() {
 			}
 
 		}
-		sdl.Delay(1)
+		//sdl.Delay(1)
 	}
 }
