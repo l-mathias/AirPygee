@@ -9,17 +9,29 @@ package ui2d
 import (
 	"AirPygee/game"
 	"bufio"
+	"fmt"
 	"github.com/veandco/go-sdl2/img"
+	"github.com/veandco/go-sdl2/mix"
 	"github.com/veandco/go-sdl2/sdl"
 	"github.com/veandco/go-sdl2/ttf"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"unsafe"
 )
 
+const (
+	FontSmall FontSize = iota
+	FontMedium
+	FontLarge
+	musicVolume  int = 32
+	soundsVolume int = 10
+)
+
 type ui struct {
+	sounds                                    sounds
 	winWidth, winHeight                       int
 	renderer                                  *sdl.Renderer
 	window                                    *sdl.Window
@@ -77,20 +89,66 @@ func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 	}
 
 	ui.eventBackground = ui.GetSinglePixel(sdl.Color{0, 0, 0, 128})
-	err = ui.eventBackground.SetBlendMode(sdl.BLENDMODE_BLEND)
-	if err != nil {
+	if err = ui.eventBackground.SetBlendMode(sdl.BLENDMODE_BLEND); err != nil {
 		panic(err)
 	}
+
+	ui.loadSounds()
+
 	return ui
 }
 
-type FontSize int
+func (ui *ui) loadSounds() {
+	if err := mix.OpenAudio(22050, mix.DEFAULT_FORMAT, 2, 4096); err != nil {
+		panic(err)
+	}
 
-const (
-	FontSmall FontSize = iota
-	FontMedium
-	FontLarge
-)
+	mus, err := mix.LoadMUS("ui2d/assets/audio/music/the_field_of_dreams.mp3")
+	mix.VolumeMusic(musicVolume)
+
+	if err != nil {
+		panic(err)
+	}
+
+	err = mus.Play(-1)
+	if err != nil {
+		panic(err)
+	}
+
+	ui.sounds.footstep = buildSoundsVariations("ui2d/assets/audio/sounds/Kenney/footstep*.ogg")
+	ui.sounds.OpenDoor = buildSoundsVariations("ui2d/assets/audio/sounds/Kenney/doorOpen*.ogg")
+}
+
+func buildSoundsVariations(pattern string) []*mix.Chunk {
+	fileNames, err := filepath.Glob(pattern)
+	result := make([]*mix.Chunk, 0)
+	if err != nil {
+		panic(err)
+	}
+
+	for _, fileName := range fileNames {
+		sound, err := mix.LoadWAV(fileName)
+		if err != nil {
+			panic(err)
+		}
+		result = append(result, sound)
+	}
+
+	return result
+}
+
+func playRandomSound(chunks []*mix.Chunk, volume int) {
+	chunkIndex := rand.Intn(len(chunks))
+	chunks[chunkIndex].Volume(volume)
+	chunks[chunkIndex].Play(-1, 0)
+}
+
+type sounds struct {
+	OpenDoor []*mix.Chunk
+	footstep []*mix.Chunk
+}
+
+type FontSize int
 
 func (ui *ui) stringToTexture(s string, color sdl.Color, size FontSize) *sdl.Texture {
 
@@ -208,6 +266,14 @@ func init() {
 
 	if err = ttf.Init(); err != nil {
 		return
+	}
+
+	if err = mix.Init(mix.INIT_MP3); err != nil {
+		panic(err)
+	}
+
+	if err = mix.Init(mix.INIT_OGG); err != nil {
+		panic(err)
 	}
 }
 
@@ -385,6 +451,15 @@ func (ui *ui) Run() {
 		select {
 		case newLevel, ok := <-ui.levelChan:
 			if ok {
+				switch newLevel.LastEvent {
+				case game.Move:
+					fmt.Println("game move")
+					playRandomSound(ui.sounds.footstep, soundsVolume)
+				case game.DoorOpen:
+					playRandomSound(ui.sounds.OpenDoor, soundsVolume)
+				default:
+					//
+				}
 				ui.Draw(newLevel)
 			}
 		default:

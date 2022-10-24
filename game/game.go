@@ -96,14 +96,25 @@ type Player struct {
 	Character
 }
 
+type GameEvent int
+
+const (
+	Move GameEvent = iota
+	DoorOpen
+	Attack
+	Hit
+	Portal
+)
+
 type Level struct {
-	Map      [][]Tile
-	Player   *Player
-	Monsters map[Pos]*Monster
-	Portals  map[Pos]*LevelPos
-	Events   []string
-	EventPos int
-	Debug    map[Pos]bool
+	Map       [][]Tile
+	Player    *Player
+	Monsters  map[Pos]*Monster
+	Portals   map[Pos]*LevelPos
+	Events    []string
+	EventPos  int
+	Debug     map[Pos]bool
+	LastEvent GameEvent
 }
 
 func (c *Character) Pass() {
@@ -117,6 +128,7 @@ func (level *Level) Attack(c1, c2 *Character) {
 
 	if c2.Hitpoints > 0 {
 		level.AddEvent(c1.Name + " attacked " + c2.Name + " for " + strconv.Itoa(c1AttackPower))
+		level.LastEvent = Attack
 	} else {
 		level.AddEvent(c1.Name + " killed " + c2.Name)
 	}
@@ -227,6 +239,7 @@ func canWalk(level *Level, pos Pos) bool {
 func checkDoor(level *Level, pos Pos) {
 	if level.Map[pos.Y][pos.X].OverlayRune == ClosedDoor {
 		level.Map[pos.Y][pos.X].OverlayRune = OpenDoor
+		level.LastEvent = DoorOpen
 		level.lineOfSight()
 	}
 }
@@ -259,6 +272,7 @@ func (game *Game) Move(to Pos) {
 		game.CurrentLevel.lineOfSight()
 	} else {
 		game.CurrentLevel.Player.Pos = to
+		level.LastEvent = Move
 		for y, row := range game.CurrentLevel.Map {
 			for x := range row {
 				game.CurrentLevel.Map[y][x].Visible = false
@@ -437,6 +451,7 @@ func (game *Game) loadLevels() map[string]*Level {
 		level.Map = make([][]Tile, len(levelLines))
 		level.Monsters = make(map[Pos]*Monster, 0)
 		level.Portals = make(map[Pos]*LevelPos, 0)
+		level.LastEvent = -1
 
 		for i := range level.Map {
 			level.Map[i] = make([]Tile, longestRow)
