@@ -115,7 +115,8 @@ func (ui *ui) loadSounds() {
 	}
 
 	ui.sounds.footstep = buildSoundsVariations("ui2d/assets/audio/sounds/Kenney/footstep*.ogg")
-	ui.sounds.OpenDoor = buildSoundsVariations("ui2d/assets/audio/sounds/Kenney/doorOpen*.ogg")
+	ui.sounds.openDoor = buildSoundsVariations("ui2d/assets/audio/sounds/Kenney/doorOpen*.ogg")
+	ui.sounds.swing = buildSoundsVariations("ui2d/assets/audio/sounds/battle/swing*.wav")
 }
 
 func buildSoundsVariations(pattern string) []*mix.Chunk {
@@ -143,8 +144,9 @@ func playRandomSound(chunks []*mix.Chunk, volume int) {
 }
 
 type sounds struct {
-	OpenDoor []*mix.Chunk
+	openDoor []*mix.Chunk
 	footstep []*mix.Chunk
+	swing    []*mix.Chunk
 }
 
 type FontSize int
@@ -483,17 +485,19 @@ func (ui *ui) Run() {
 			if ok {
 				switch newLevel.LastEvent {
 				case game.Move:
+					playRandomSound(ui.sounds.footstep, soundsVolume)
 					for i := 0; i < 3; i++ {
 						ui.Draw(newLevel)
 						newLevel.Player.CurrentFrame++
 						if newLevel.Player.CurrentFrame >= newLevel.Player.FramesY {
 							newLevel.Player.CurrentFrame = 0
 						}
-						playRandomSound(ui.sounds.footstep, soundsVolume)
 						sdl.Delay(50)
 					}
 				case game.DoorOpen:
-					playRandomSound(ui.sounds.OpenDoor, soundsVolume)
+					playRandomSound(ui.sounds.openDoor, soundsVolume)
+				case game.Attack:
+					playRandomSound(ui.sounds.swing, soundsVolume)
 				default:
 					//
 				}
@@ -525,7 +529,7 @@ func (ui *ui) Run() {
 				case sdl.K_RIGHT:
 					input = game.Input{Typ: game.Right}
 				case sdl.K_e:
-					input = game.Input{Typ: game.Search}
+					input = game.Input{Typ: game.Action}
 				default:
 					input = game.Input{Typ: game.None}
 				}

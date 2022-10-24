@@ -20,7 +20,7 @@ const (
 	Right
 	QuitGame
 	CloseWindow
-	Search
+	Action
 )
 
 type Game struct {
@@ -325,6 +325,8 @@ func (game *Game) handleInput(input *Input) {
 		game.CurrentLevel.Player.Update(Right)
 		newPos := Pos{p.X + 1, p.Y}
 		game.resolveMovement(newPos)
+	case Action:
+		fmt.Println("Action launched")
 	case CloseWindow:
 		close(input.LevelChannel)
 		chanIndex := 0
