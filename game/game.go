@@ -92,10 +92,6 @@ type Character struct {
 	SightRange   int
 }
 
-type Player struct {
-	Character
-}
-
 type GameEvent int
 
 const (
@@ -314,15 +310,19 @@ func (game *Game) handleInput(input *Input) {
 	p := game.CurrentLevel.Player
 	switch input.Typ {
 	case Up:
+		game.CurrentLevel.Player.Update(Up)
 		newPos := Pos{p.X, p.Y - 1}
 		game.resolveMovement(newPos)
 	case Down:
+		game.CurrentLevel.Player.Update(Down)
 		newPos := Pos{p.X, p.Y + 1}
 		game.resolveMovement(newPos)
 	case Left:
+		game.CurrentLevel.Player.Update(Left)
 		newPos := Pos{p.X - 1, p.Y}
 		game.resolveMovement(newPos)
 	case Right:
+		game.CurrentLevel.Player.Update(Right)
 		newPos := Pos{p.X + 1, p.Y}
 		game.resolveMovement(newPos)
 	case CloseWindow:
@@ -339,18 +339,6 @@ func (game *Game) handleInput(input *Input) {
 			os.Exit(1)
 		}
 	}
-}
-
-func NewPlayer() *Player {
-	return &Player{Character{
-		Entity:       Entity{Name: "Wizard", Rune: '@'},
-		Hitpoints:    20,
-		MaxHitpoints: 20,
-		Strength:     20,
-		Speed:        1.0,
-		ActionPoints: 0,
-		SightRange:   10,
-	}}
 }
 
 func (game *Game) loadWorld() {
@@ -413,7 +401,7 @@ func (game *Game) loadWorld() {
 }
 
 func (game *Game) loadLevels() map[string]*Level {
-	player := NewPlayer()
+	player := NewPlayer("ui2d/assets/george.png", 4, 4)
 
 	levels := make(map[string]*Level, 0)
 

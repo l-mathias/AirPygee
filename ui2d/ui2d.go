@@ -9,7 +9,6 @@ package ui2d
 import (
 	"AirPygee/game"
 	"bufio"
-	"fmt"
 	"github.com/veandco/go-sdl2/img"
 	"github.com/veandco/go-sdl2/mix"
 	"github.com/veandco/go-sdl2/sdl"
@@ -275,10 +274,43 @@ func init() {
 	if err = mix.Init(mix.INIT_OGG); err != nil {
 		panic(err)
 	}
+
+}
+
+func (ui *ui) LoadPlayer(level *game.Level, r *sdl.Renderer) {
+	image, err := img.Load(level.Player.Filename)
+	if err != nil {
+		panic(err)
+	}
+	defer image.Free()
+
+	level.Player.Texture, err = r.CreateTextureFromSurface(image)
+	if err != nil {
+		panic(err)
+	}
+
+	// Query image size and calculate frame width and height
+	_, _, imageWidth, imageHeight, _ := level.Player.Texture.Query()
+	level.Player.Width = imageWidth / level.Player.FramesX
+	level.Player.Height = imageHeight / level.Player.FramesY
+}
+
+func (ui *ui) DrawPlayer(level *game.Level, r *sdl.Renderer, offsetX, offsetY int32) {
+	p := level.Player
+	p.FromY = p.CurrentFrame * p.Width
+
+	p.Src = sdl.Rect{X: p.FromX, Y: p.FromY, W: p.Width, H: p.Height}
+	p.Dest = sdl.Rect{X: int32(p.X*32) + offsetX - ((p.Width - 32) / 2), Y: int32(p.Y*32) + offsetY - ((p.Height - 32) / 2), W: p.Width, H: p.Height}
+
+	err := r.Copy(p.Texture, &p.Src, &p.Dest)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (ui *ui) Draw(level *game.Level) {
 	if ui.centerX == -1 && ui.centerY == -1 {
+		ui.LoadPlayer(level, ui.renderer)
 		ui.centerX = level.Player.X
 		ui.centerY = level.Player.Y
 	}
@@ -366,10 +398,8 @@ func (ui *ui) Draw(level *game.Level) {
 			}
 		}
 	}
-	playerSrcRect := ui.textureIndex['@'][0]
-	if err := ui.renderer.Copy(ui.textureAtlas, &playerSrcRect, &sdl.Rect{int32(level.Player.X*32) + offsetX, int32(level.Player.Y*32) + offsetY, 32, 32}); err != nil {
-		panic(err)
-	}
+
+	ui.DrawPlayer(level, ui.renderer, offsetX, offsetY)
 
 	ui.displayStats(level, offsetX, offsetY)
 
@@ -453,8 +483,15 @@ func (ui *ui) Run() {
 			if ok {
 				switch newLevel.LastEvent {
 				case game.Move:
-					fmt.Println("game move")
-					playRandomSound(ui.sounds.footstep, soundsVolume)
+					for i := 0; i < 3; i++ {
+						ui.Draw(newLevel)
+						newLevel.Player.CurrentFrame++
+						if newLevel.Player.CurrentFrame >= newLevel.Player.FramesY {
+							newLevel.Player.CurrentFrame = 0
+						}
+						playRandomSound(ui.sounds.footstep, soundsVolume)
+						sdl.Delay(50)
+					}
 				case game.DoorOpen:
 					playRandomSound(ui.sounds.OpenDoor, soundsVolume)
 				default:
