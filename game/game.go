@@ -21,6 +21,7 @@ const (
 	QuitGame
 	CloseWindow
 	Action
+	Take
 )
 
 type Game struct {
@@ -90,6 +91,7 @@ type Character struct {
 	Speed        float64
 	ActionPoints float64
 	SightRange   int
+	Items        []*Item
 }
 
 type GameEvent int
@@ -107,6 +109,7 @@ type Level struct {
 	Player    *Player
 	Monsters  map[Pos]*Monster
 	Portals   map[Pos]*LevelPos
+	Items     map[Pos][]*Item
 	Events    []string
 	EventPos  int
 	Debug     map[Pos]bool
@@ -115,6 +118,22 @@ type Level struct {
 
 func (c *Character) Pass() {
 	c.ActionPoints -= c.Speed
+}
+
+func (level *Level) MoveItem(itemToMove *Item, character *Character) {
+	pos := character.Pos
+	items := level.Items[pos]
+	for i, item := range items {
+		if item == itemToMove {
+			items = append(items[:i], items[i+1:]...)
+			level.Items[pos] = items
+			character.Items = append(character.Items, item)
+			level.AddEvent(character.Name + " picked up " + itemToMove.Name)
+			return
+		}
+	}
+	panic("Tried to remove item we're not on top of")
+
 }
 
 func (level *Level) Attack(c1, c2 *Character) {
@@ -253,6 +272,12 @@ func canSeeTrough(level *Level, pos Pos) bool {
 	return false
 }
 
+func (game *Game) pickup(pos Pos) {
+	for _, item := range game.CurrentLevel.Items[pos] {
+		game.CurrentLevel.MoveItem(item, &game.CurrentLevel.Player.Character)
+	}
+}
+
 func (game *Game) Move(to Pos) {
 	level := game.CurrentLevel
 	portal := level.Portals[to]
@@ -327,6 +352,8 @@ func (game *Game) handleInput(input *Input) {
 		game.resolveMovement(newPos)
 	case Action:
 		fmt.Println("Action launched")
+	case Take:
+		game.pickup(game.CurrentLevel.Player.Pos)
 	case CloseWindow:
 		close(input.LevelChannel)
 		chanIndex := 0
@@ -441,6 +468,7 @@ func (game *Game) loadLevels() map[string]*Level {
 		level.Map = make([][]Tile, len(levelLines))
 		level.Monsters = make(map[Pos]*Monster, 0)
 		level.Portals = make(map[Pos]*LevelPos, 0)
+		level.Items = make(map[Pos][]*Item, 0)
 		level.LastEvent = -1
 
 		for i := range level.Map {
@@ -450,6 +478,7 @@ func (game *Game) loadLevels() map[string]*Level {
 		for y := range levelLines {
 			line := levelLines[y]
 			for x, c := range line {
+				pos := Pos{X: x, Y: y}
 				switch c {
 				case ' ', '\n', '\t', '\r':
 					level.Map[y][x].Rune = Blank
@@ -469,15 +498,21 @@ func (game *Game) loadLevels() map[string]*Level {
 				case 'u':
 					level.Map[y][x].OverlayRune = UpStair
 					level.Map[y][x].Rune = Pending
+				case 's':
+					level.Items[pos] = append(level.Items[pos], NewSword(pos))
+					level.Map[y][x].Rune = Pending
+				case 'h':
+					level.Items[pos] = append(level.Items[pos], NewHelmet(pos))
+					level.Map[y][x].Rune = Pending
 				case '@':
 					level.Player.X = x
 					level.Player.Y = y
 					level.Map[y][x].Rune = Pending
 				case 'R':
-					level.Monsters[Pos{x, y}] = NewRat(Pos{x, y})
+					level.Monsters[pos] = NewRat(pos)
 					level.Map[y][x].Rune = Pending
 				case 'S':
-					level.Monsters[Pos{x, y}] = NewSpider(Pos{x, y})
+					level.Monsters[pos] = NewSpider(pos)
 					level.Map[y][x].Rune = Pending
 				default:
 					panic("invalid character in map")

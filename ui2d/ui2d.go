@@ -40,6 +40,7 @@ type ui struct {
 	r                                         *rand.Rand
 	levelChan                                 chan *game.Level
 	inputChan                                 chan *game.Input
+	offsetX, offsetY                          int32
 	eventBackground                           *sdl.Texture
 	fontSmall, fontMedium, fontLarge          *ttf.Font
 	str2TexSmall, str2TexMedium, str2TexLarge map[string]*sdl.Texture
@@ -87,7 +88,7 @@ func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 		panic(err)
 	}
 
-	ui.eventBackground = ui.GetSinglePixel(sdl.Color{0, 0, 0, 128})
+	ui.eventBackground = ui.getSinglePixel(sdl.Color{0, 0, 0, 128})
 	if err = ui.eventBackground.SetBlendMode(sdl.BLENDMODE_BLEND); err != nil {
 		panic(err)
 	}
@@ -291,20 +292,19 @@ func (ui *ui) LoadPlayer(level *game.Level, r *sdl.Renderer) {
 		panic(err)
 	}
 
-	// Query image size and calculate frame width and height
 	_, _, imageWidth, imageHeight, _ := level.Player.Texture.Query()
 	level.Player.Width = imageWidth / level.Player.FramesX
 	level.Player.Height = imageHeight / level.Player.FramesY
 }
 
-func (ui *ui) DrawPlayer(level *game.Level, r *sdl.Renderer, offsetX, offsetY int32) {
+func (ui *ui) drawPlayer(level *game.Level) {
 	p := level.Player
 	p.FromY = p.CurrentFrame * p.Width
 
 	p.Src = sdl.Rect{X: p.FromX, Y: p.FromY, W: p.Width, H: p.Height}
-	p.Dest = sdl.Rect{X: int32(p.X*32) + offsetX - ((p.Width - 32) / 2), Y: int32(p.Y*32) + offsetY - ((p.Height - 32) / 2), W: p.Width, H: p.Height}
+	p.Dest = sdl.Rect{X: int32(p.X*32) + ui.offsetX - ((p.Width - 32) / 2), Y: int32(p.Y*32) + ui.offsetY - ((p.Height - 32) / 2), W: p.Width, H: p.Height}
 
-	err := r.Copy(p.Texture, &p.Src, &p.Dest)
+	err := ui.renderer.Copy(p.Texture, &p.Src, &p.Dest)
 	if err != nil {
 		panic(err)
 	}
@@ -332,8 +332,8 @@ func (ui *ui) Draw(level *game.Level) {
 		diff := (ui.centerY - limit) - level.Player.Y
 		ui.centerY -= diff
 	}
-	offsetX := int32(ui.winWidth/2 - ui.centerX*32)
-	offsetY := int32(ui.winHeight/2 - ui.centerY*32)
+	ui.offsetX = int32(ui.winWidth/2 - ui.centerX*32)
+	ui.offsetY = int32(ui.winHeight/2 - ui.centerY*32)
 
 	err := ui.renderer.Clear()
 	if err != nil {
@@ -346,7 +346,7 @@ func (ui *ui) Draw(level *game.Level) {
 				srcRects := ui.textureIndex[tile.Rune]
 				srcRect := srcRects[ui.r.Intn(len(srcRects))]
 				if tile.Visible || tile.Seen {
-					dstRect := sdl.Rect{int32(x*32) + offsetX, int32(y*32) + offsetY, 32, 32}
+					dstRect := sdl.Rect{int32(x*32) + ui.offsetX, int32(y*32) + ui.offsetY, 32, 32}
 					pos := game.Pos{X: x, Y: y}
 					if level.Debug[pos] {
 						if err := ui.textureAtlas.SetColorMod(128, 0, 0); err != nil {
@@ -377,37 +377,27 @@ func (ui *ui) Draw(level *game.Level) {
 		}
 	}
 
-	if err := ui.textureAtlas.SetColorMod(255, 255, 255); err != nil {
-		panic(err)
-	}
-	for pos, monster := range level.Monsters {
-		if level.Map[pos.Y][pos.X].Visible {
+	ui.displayMonsters(level)
+	ui.displayItems(level)
+	ui.drawPlayer(level)
+	ui.displayStats(level)
+	ui.displayEvents(level)
 
-			if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 928, Y: 1600, W: 32, H: 32}, &sdl.Rect{int32(level.Monsters[pos].X*32) + offsetX, int32((level.Monsters[pos].Y-1)*32) + offsetY + 20, 32, 5}); err != nil {
-				panic(err)
-			}
-			var gauge float64
-			gauge = float64(level.Monsters[pos].Hitpoints) / float64(level.Monsters[pos].MaxHitpoints)
-
-			if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 1024, Y: 1600, W: 32, H: 32}, &sdl.Rect{int32(level.Monsters[pos].X*32) + offsetX, int32((level.Monsters[pos].Y-1)*32) + offsetY + 20, int32(32 * gauge), 5}); err != nil {
-				panic(err)
-			}
-
-			monsterSrcRect := ui.textureIndex[monster.Rune][0]
-			err := ui.renderer.Copy(ui.textureAtlas, &monsterSrcRect, &sdl.Rect{int32(pos.X*32) + offsetX, int32(pos.Y*32) + offsetY, 32, 32})
-			if err != nil {
-				panic(err)
-			}
+	items := level.Items[level.Player.Pos]
+	for i, item := range items {
+		itemSrcRect := ui.textureIndex[item.Rune][0]
+		err := ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: int32(ui.winWidth - 32 - i*32), Y: int32(ui.winHeight - 32), W: 32, H: 32})
+		if err != nil {
+			panic(err)
 		}
 	}
+	ui.renderer.Present()
+}
 
-	ui.DrawPlayer(level, ui.renderer, offsetX, offsetY)
-
-	ui.displayStats(level, offsetX, offsetY)
-
+func (ui *ui) displayEvents(level *game.Level) {
 	textStart := int32(float64(ui.winHeight) * .68)
 	textWidth := int32(float64(ui.winWidth) * .25)
-	err = ui.renderer.Copy(ui.eventBackground, nil, &sdl.Rect{X: 0, Y: textStart, W: textWidth, H: int32(ui.winHeight) - textStart})
+	err := ui.renderer.Copy(ui.eventBackground, nil, &sdl.Rect{X: 0, Y: textStart, W: textWidth, H: int32(ui.winHeight) - textStart})
 	if err != nil {
 		panic(err)
 	}
@@ -432,10 +422,48 @@ func (ui *ui) Draw(level *game.Level) {
 			break
 		}
 	}
-	ui.renderer.Present()
 }
 
-func (ui *ui) displayStats(level *game.Level, offsetX, offsetY int32) {
+func (ui *ui) displayItems(level *game.Level) {
+	// Display Items
+	for pos, items := range level.Items {
+		if level.Map[pos.Y][pos.X].Visible {
+			for _, item := range items {
+				itemSrcRect := ui.textureIndex[item.Rune][0]
+				ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{int32(pos.X*32) + ui.offsetX, int32(pos.Y*32) + ui.offsetY, 32, 32})
+			}
+		}
+	}
+}
+
+func (ui *ui) displayMonsters(level *game.Level) {
+	// Display Monsters
+	if err := ui.textureAtlas.SetColorMod(255, 255, 255); err != nil {
+		panic(err)
+	}
+	for pos, monster := range level.Monsters {
+		if level.Map[pos.Y][pos.X].Visible {
+
+			if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 928, Y: 1600, W: 32, H: 32}, &sdl.Rect{int32(level.Monsters[pos].X*32) + ui.offsetX, int32((level.Monsters[pos].Y-1)*32) + ui.offsetY + 20, 32, 5}); err != nil {
+				panic(err)
+			}
+			var gauge float64
+			gauge = float64(level.Monsters[pos].Hitpoints) / float64(level.Monsters[pos].MaxHitpoints)
+
+			if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 1024, Y: 1600, W: 32, H: 32}, &sdl.Rect{int32(level.Monsters[pos].X*32) + ui.offsetX, int32((level.Monsters[pos].Y-1)*32) + ui.offsetY + 20, int32(32 * gauge), 5}); err != nil {
+				panic(err)
+			}
+
+			monsterSrcRect := ui.textureIndex[monster.Rune][0]
+			err := ui.renderer.Copy(ui.textureAtlas, &monsterSrcRect, &sdl.Rect{int32(pos.X*32) + ui.offsetX, int32(pos.Y*32) + ui.offsetY, 32, 32})
+			if err != nil {
+				panic(err)
+			}
+		}
+	}
+}
+
+func (ui *ui) displayStats(level *game.Level) {
 	// Life symbol
 	if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 32, Y: 0, W: 32, H: 32}, &sdl.Rect{0, int32(ui.winHeight / 2), 32, 32}); err != nil {
 		panic(err)
@@ -450,20 +478,20 @@ func (ui *ui) displayStats(level *game.Level, offsetX, offsetY int32) {
 	}
 
 	// Life gauge using red rect on black rect
-	if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 928, Y: 1600, W: 32, H: 32}, &sdl.Rect{int32(level.Player.Pos.X*32) + offsetX, int32((level.Player.Pos.Y-1)*32) + offsetY + 20, 32, 5}); err != nil {
+	if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 928, Y: 1600, W: 32, H: 32}, &sdl.Rect{int32(level.Player.Pos.X*32) + ui.offsetX, int32((level.Player.Pos.Y-1)*32) + ui.offsetY + 20, 32, 5}); err != nil {
 		panic(err)
 	}
 
 	var gauge float64
 	gauge = float64(level.Player.Hitpoints) / float64(level.Player.MaxHitpoints)
 
-	if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 1024, Y: 1600, W: 32, H: 32}, &sdl.Rect{int32(level.Player.Pos.X*32) + offsetX, int32((level.Player.Pos.Y-1)*32) + offsetY + 20, int32(32 * gauge), 5}); err != nil {
+	if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 1024, Y: 1600, W: 32, H: 32}, &sdl.Rect{int32(level.Player.Pos.X*32) + ui.offsetX, int32((level.Player.Pos.Y-1)*32) + ui.offsetY + 20, int32(32 * gauge), 5}); err != nil {
 		panic(err)
 	}
 
 }
 
-func (ui *ui) GetSinglePixel(color sdl.Color) *sdl.Texture {
+func (ui *ui) getSinglePixel(color sdl.Color) *sdl.Texture {
 	tex, err := ui.renderer.CreateTexture(sdl.PIXELFORMAT_ABGR8888, sdl.TEXTUREACCESS_STATIC, 1, 1)
 	if err != nil {
 		panic(err)
@@ -486,14 +514,16 @@ func (ui *ui) Run() {
 				switch newLevel.LastEvent {
 				case game.Move:
 					playRandomSound(ui.sounds.footstep, soundsVolume)
-					for i := 0; i < 3; i++ {
-						ui.Draw(newLevel)
-						newLevel.Player.CurrentFrame++
-						if newLevel.Player.CurrentFrame >= newLevel.Player.FramesY {
-							newLevel.Player.CurrentFrame = 0
-						}
-					}
-					sdl.WaitEvent()
+					// bug due to wait time and slow ui, not the best way to do
+					//TODO - improve animations
+					//for i := 0; i < 3; i++ {
+					//	ui.Draw(newLevel)
+					//	newLevel.Player.CurrentFrame++
+					//	if newLevel.Player.CurrentFrame >= newLevel.Player.FramesY {
+					//		newLevel.Player.CurrentFrame = 0
+					//	}
+					//}
+					//sdl.WaitEvent()
 				case game.DoorOpen:
 					playRandomSound(ui.sounds.openDoor, soundsVolume)
 				case game.Attack:
@@ -530,6 +560,8 @@ func (ui *ui) Run() {
 					input = game.Input{Typ: game.Right}
 				case sdl.K_e:
 					input = game.Input{Typ: game.Action}
+				case sdl.K_t:
+					input = game.Input{Typ: game.Take}
 				default:
 					input = game.Input{Typ: game.None}
 				}
