@@ -20,9 +20,9 @@ const (
 	Right
 	QuitGame
 	CloseWindow
-	MouseClick
 	Action
-	Take
+	TakeAll
+	TakeItem
 )
 
 type Game struct {
@@ -55,7 +55,7 @@ type Tile struct {
 
 type Input struct {
 	Typ          InputType
-	pos          Pos
+	Item         *Item
 	LevelChannel chan *Level
 }
 
@@ -105,6 +105,7 @@ const (
 	Attack
 	Hit
 	Portal
+	Pickup
 )
 
 type Level struct {
@@ -132,11 +133,11 @@ func (level *Level) MoveItem(itemToMove *Item, character *Character) {
 			level.Items[pos] = items
 			character.Items = append(character.Items, item)
 			level.AddEvent(character.Name + " picked up " + itemToMove.Name)
+			level.LastEvent = Pickup
 			return
 		}
 	}
 	panic("Tried to remove item we're not on top of")
-
 }
 
 func (level *Level) Attack(c1, c2 *Character) {
@@ -275,9 +276,13 @@ func canSeeTrough(level *Level, pos Pos) bool {
 	return false
 }
 
-func (game *Game) pickup(pos Pos) {
-	for _, item := range game.CurrentLevel.Items[pos] {
+func (game *Game) pickup(pos Pos, item *Item) {
+	if item != nil {
 		game.CurrentLevel.MoveItem(item, &game.CurrentLevel.Player.Character)
+	} else {
+		for _, item := range game.CurrentLevel.Items[pos] {
+			game.CurrentLevel.MoveItem(item, &game.CurrentLevel.Player.Character)
+		}
 	}
 }
 
@@ -355,8 +360,10 @@ func (game *Game) handleInput(input *Input) {
 		game.resolveMovement(newPos)
 	case Action:
 		fmt.Println("Action launched")
-	case Take:
-		game.pickup(game.CurrentLevel.Player.Pos)
+	case TakeAll:
+		game.pickup(game.CurrentLevel.Player.Pos, nil)
+	case TakeItem:
+		game.pickup(game.CurrentLevel.Player.Pos, input.Item)
 	case CloseWindow:
 		close(input.LevelChannel)
 		chanIndex := 0
@@ -503,6 +510,7 @@ func (game *Game) loadLevels() map[string]*Level {
 					level.Map[y][x].Rune = Pending
 				case 's':
 					level.Items[pos] = append(level.Items[pos], NewSword(pos))
+					level.Items[pos] = append(level.Items[pos], NewHelmet(pos))
 					level.Map[y][x].Rune = Pending
 				case 'h':
 					level.Items[pos] = append(level.Items[pos], NewHelmet(pos))

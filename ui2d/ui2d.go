@@ -127,6 +127,7 @@ func (ui *ui) loadSounds() {
 	ui.sounds.footstep = buildSoundsVariations("ui2d/assets/audio/sounds/Kenney/footstep*.ogg")
 	ui.sounds.openDoor = buildSoundsVariations("ui2d/assets/audio/sounds/Kenney/doorOpen*.ogg")
 	ui.sounds.swing = buildSoundsVariations("ui2d/assets/audio/sounds/battle/swing*.wav")
+	ui.sounds.pickup = buildSoundsVariations("ui2d/assets/audio/sounds/Kenney/cloth*.ogg")
 }
 
 func buildSoundsVariations(pattern string) []*mix.Chunk {
@@ -157,6 +158,7 @@ type sounds struct {
 	openDoor []*mix.Chunk
 	footstep []*mix.Chunk
 	swing    []*mix.Chunk
+	pickup   []*mix.Chunk
 }
 
 type FontSize int
@@ -394,8 +396,8 @@ func (ui *ui) Draw(level *game.Level) {
 
 	// display item we are on top of
 	if len(level.Items[level.Player.Pos]) > 0 {
-		items := level.Items[level.Player.Pos]
-		for i, item := range items {
+		groundItems := level.Items[level.Player.Pos]
+		for i, item := range groundItems {
 			itemSrcRect := ui.textureIndex[item.Rune][0]
 			err := ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: int32(ui.winWidth - 32 - i*32), Y: 0, W: 32, H: 32})
 			if err != nil {
@@ -403,7 +405,7 @@ func (ui *ui) Draw(level *game.Level) {
 			}
 		}
 		// drawing help letter T
-		if err := ui.renderer.Copy(ui.tileMap, &sdl.Rect{X: 358, Y: 34, W: 16, H: 16}, &sdl.Rect{X: int32(ui.winWidth - 32 - len(items)*32), Y: 0, W: 32, H: 32}); err != nil {
+		if err := ui.renderer.Copy(ui.tileMap, &sdl.Rect{X: 358, Y: 34, W: 16, H: 16}, &sdl.Rect{X: int32(ui.winWidth - 32 - len(groundItems)*32), Y: 0, W: 32, H: 32}); err != nil {
 			panic(err)
 		}
 	}
@@ -540,34 +542,42 @@ func (ui *ui) getSinglePixel(color sdl.Color) *sdl.Texture {
 	return tex
 }
 
+func (ui *ui) getGroundItemRect(i int) *sdl.Rect {
+	return &sdl.Rect{X: int32(ui.winWidth - 32 - i*32), Y: 0, W: 32, H: 32}
+}
+
+func (ui *ui) pickupItem(level *game.Level, mouseX, mouseY int32) *game.Item {
+	items := level.Items[level.Player.Pos]
+	for i, item := range items {
+		itemRect := ui.getGroundItemRect(i)
+		if itemRect.HasIntersection(&sdl.Rect{X: mouseX, Y: mouseY, W: 1, H: 1}) {
+			return item
+		}
+	}
+	return nil
+}
+
 func (ui *ui) Run() {
+	var newLevel *game.Level
+	var ok bool
 	for {
 		input := game.Input{}
 		select {
-		case newLevel, ok := <-ui.levelChan:
+		case newLevel, ok = <-ui.levelChan:
 			if ok {
 				switch newLevel.LastEvent {
 				case game.Move:
 					playRandomSound(ui.sounds.footstep, soundsVolume)
-					newLevel.LastEvent = game.Empty
-					// bug due to wait time and slow ui, not the best way to do
 					//TODO - improve animations
-					//for i := 0; i < 3; i++ {
-					//	ui.Draw(newLevel)
-					//	newLevel.Player.CurrentFrame++
-					//	if newLevel.Player.CurrentFrame >= newLevel.Player.FramesY {
-					//		newLevel.Player.CurrentFrame = 0
-					//	}
-					//}
-					//sdl.WaitEvent()
 				case game.DoorOpen:
 					playRandomSound(ui.sounds.openDoor, soundsVolume)
-					newLevel.LastEvent = game.Empty
 				case game.Attack:
 					playRandomSound(ui.sounds.swing, soundsVolume)
-					newLevel.LastEvent = game.Empty
+				case game.Pickup:
+					playRandomSound(ui.sounds.pickup, soundsVolume)
 				default:
 				}
+				newLevel.LastEvent = game.Empty
 				ui.Draw(newLevel)
 			}
 		default:
@@ -580,10 +590,17 @@ func (ui *ui) Run() {
 				if e.Event == sdl.WINDOWEVENT_CLOSE {
 					ui.inputChan <- &game.Input{Typ: game.CloseWindow, LevelChannel: ui.levelChan}
 				}
+			case *sdl.MouseButtonEvent:
+				if e.State == sdl.PRESSED && e.Button == sdl.BUTTON_LEFT {
+					item := ui.pickupItem(newLevel, e.X, e.Y)
+					if item != nil {
+						ui.inputChan <- &game.Input{Typ: game.TakeItem, Item: item}
+					}
+				}
 			case *sdl.KeyboardEvent:
 				// Seems not needed
 				//if sdl.GetKeyboardFocus() == ui.window || sdl.GetMouseFocus() == ui.window {
-				if e.Type != sdl.KEYDOWN {
+				if e.State != sdl.PRESSED {
 					break
 				}
 				switch e.Keysym.Sym {
@@ -598,7 +615,7 @@ func (ui *ui) Run() {
 				case sdl.K_e:
 					input = game.Input{Typ: game.Action}
 				case sdl.K_t:
-					input = game.Input{Typ: game.Take}
+					input = game.Input{Typ: game.TakeAll}
 				default:
 					input = game.Input{Typ: game.None}
 				}
@@ -607,8 +624,7 @@ func (ui *ui) Run() {
 				}
 				//}
 			}
-
 		}
-		//sdl.Delay(1)
+		sdl.Delay(10)
 	}
 }

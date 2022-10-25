@@ -6,17 +6,12 @@ import (
 
 type Player struct {
 	Character
-	Filename string
-	// Sprite size, not full image size
-	Width, Height int32
-	// For animation
+	Filename                                     string
+	Width, Height                                int32
 	FromX, FromY, FramesX, FramesY, CurrentFrame int32
-	// Holds image
-	Texture *sdl.Texture
-	// Part of the spritesheet
-	Src sdl.Rect
-	// Part of the screen where to draw
-	Dest sdl.Rect
+	Texture                                      *sdl.Texture
+	Src                                          sdl.Rect
+	Dest                                         sdl.Rect
 }
 
 func (p *Player) Update(input InputType) {
