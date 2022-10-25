@@ -20,6 +20,7 @@ const (
 	Right
 	QuitGame
 	CloseWindow
+	MouseClick
 	Action
 	Take
 )
@@ -54,6 +55,7 @@ type Tile struct {
 
 type Input struct {
 	Typ          InputType
+	pos          Pos
 	LevelChannel chan *Level
 }
 
@@ -97,7 +99,8 @@ type Character struct {
 type GameEvent int
 
 const (
-	Move GameEvent = iota
+	Empty GameEvent = iota
+	Move
 	DoorOpen
 	Attack
 	Hit
@@ -319,7 +322,7 @@ func (game *Game) resolveMovement(pos Pos) {
 	if exists {
 		game.CurrentLevel.Attack(&level.Player.Character, &monster.Character)
 		if monster.Hitpoints <= 0 {
-			delete(level.Monsters, monster.Pos)
+			monster.kill(level)
 		}
 		if game.CurrentLevel.Player.Hitpoints <= 0 {
 			game.dead()

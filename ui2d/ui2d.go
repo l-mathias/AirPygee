@@ -35,6 +35,7 @@ type ui struct {
 	renderer                                  *sdl.Renderer
 	window                                    *sdl.Window
 	textureAtlas                              *sdl.Texture
+	tileMap                                   *sdl.Texture
 	textureIndex                              map[rune][]sdl.Rect
 	centerX, centerY                          int
 	r                                         *rand.Rand
@@ -42,6 +43,7 @@ type ui struct {
 	inputChan                                 chan *game.Input
 	offsetX, offsetY                          int32
 	eventBackground                           *sdl.Texture
+	itemsInventoryBackground                  *sdl.Texture
 	fontSmall, fontMedium, fontLarge          *ttf.Font
 	str2TexSmall, str2TexMedium, str2TexLarge map[string]*sdl.Texture
 }
@@ -67,9 +69,11 @@ func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 		panic(err)
 	}
 
-	sdl.SetHint(sdl.HINT_RENDER_SCALE_QUALITY, "1")
+	sdl.SetHint(sdl.HINT_RENDER_SCALE_QUALITY, "0")
 
 	ui.textureAtlas = ui.imgFileToTexture("ui2d/assets/tiles.png")
+	ui.tileMap = ui.imgFileToTexture("ui2d/assets/tilemap.png")
+
 	ui.loadTextureIndex()
 
 	ui.centerX = -1
@@ -89,6 +93,11 @@ func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 	}
 
 	ui.eventBackground = ui.getSinglePixel(sdl.Color{0, 0, 0, 128})
+	if err = ui.eventBackground.SetBlendMode(sdl.BLENDMODE_BLEND); err != nil {
+		panic(err)
+	}
+
+	ui.itemsInventoryBackground = ui.getSinglePixel(sdl.Color{120, 120, 120, 128})
 	if err = ui.eventBackground.SetBlendMode(sdl.BLENDMODE_BLEND); err != nil {
 		panic(err)
 	}
@@ -383,11 +392,18 @@ func (ui *ui) Draw(level *game.Level) {
 	ui.displayStats(level)
 	ui.displayEvents(level)
 
-	items := level.Items[level.Player.Pos]
-	for i, item := range items {
-		itemSrcRect := ui.textureIndex[item.Rune][0]
-		err := ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: int32(ui.winWidth - 32 - i*32), Y: int32(ui.winHeight - 32), W: 32, H: 32})
-		if err != nil {
+	// display item we are on top of
+	if len(level.Items[level.Player.Pos]) > 0 {
+		items := level.Items[level.Player.Pos]
+		for i, item := range items {
+			itemSrcRect := ui.textureIndex[item.Rune][0]
+			err := ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: int32(ui.winWidth - 32 - i*32), Y: 0, W: 32, H: 32})
+			if err != nil {
+				panic(err)
+			}
+		}
+		// drawing help letter T
+		if err := ui.renderer.Copy(ui.tileMap, &sdl.Rect{X: 358, Y: 34, W: 16, H: 16}, &sdl.Rect{X: int32(ui.winWidth - 32 - len(items)*32), Y: 0, W: 32, H: 32}); err != nil {
 			panic(err)
 		}
 	}
@@ -422,6 +438,25 @@ func (ui *ui) displayEvents(level *game.Level) {
 			break
 		}
 	}
+
+	// draw inventory
+	inventoryStart := int32(float64(ui.winWidth) * 0.7)
+	inventoryWidth := int32(ui.winWidth) - inventoryStart
+
+	err = ui.renderer.Copy(ui.itemsInventoryBackground, nil, &sdl.Rect{X: inventoryStart, Y: int32(ui.winHeight - 32), W: inventoryWidth, H: 32})
+	if err != nil {
+		panic(err)
+	}
+
+	items := level.Player.Items
+	for i, item := range items {
+		itemSrcRect := ui.textureIndex[item.Rune][0]
+		err := ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: int32(ui.winWidth - 32 - i*32), Y: int32(ui.winHeight - 32), W: 32, H: 32})
+		if err != nil {
+			panic(err)
+		}
+	}
+
 }
 
 func (ui *ui) displayItems(level *game.Level) {
@@ -514,6 +549,7 @@ func (ui *ui) Run() {
 				switch newLevel.LastEvent {
 				case game.Move:
 					playRandomSound(ui.sounds.footstep, soundsVolume)
+					newLevel.LastEvent = game.Empty
 					// bug due to wait time and slow ui, not the best way to do
 					//TODO - improve animations
 					//for i := 0; i < 3; i++ {
@@ -526,10 +562,11 @@ func (ui *ui) Run() {
 					//sdl.WaitEvent()
 				case game.DoorOpen:
 					playRandomSound(ui.sounds.openDoor, soundsVolume)
+					newLevel.LastEvent = game.Empty
 				case game.Attack:
 					playRandomSound(ui.sounds.swing, soundsVolume)
+					newLevel.LastEvent = game.Empty
 				default:
-					//
 				}
 				ui.Draw(newLevel)
 			}
