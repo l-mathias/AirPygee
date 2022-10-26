@@ -453,12 +453,9 @@ func (game *Game) loadLevels() map[string]*Level {
 		levelName := filepath.Base(fileName[:len(fileName)-len(filepath.Ext(fileName))])
 
 		file, err := os.Open(fileName)
-
 		if err != nil {
 			panic(err)
 		}
-
-		defer file.Close()
 
 		scanner := bufio.NewScanner(file)
 		levelLines := make([]string, 0)
@@ -539,7 +536,12 @@ func (game *Game) loadLevels() map[string]*Level {
 			}
 		}
 		levels[levelName] = level
+		err = file.Close()
+		if err != nil {
+			panic(err)
+		}
 	}
+
 	return levels
 }
 

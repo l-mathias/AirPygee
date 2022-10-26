@@ -29,7 +29,15 @@ const (
 	soundsVolume int = 10
 )
 
+type uiState int
+
+const (
+	UIMain uiState = iota
+	UIInventory
+)
+
 type ui struct {
+	state                                     uiState
 	sounds                                    sounds
 	winWidth, winHeight                       int
 	renderer                                  *sdl.Renderer
@@ -50,6 +58,7 @@ type ui struct {
 
 func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 	ui := &ui{}
+	ui.state = UIMain
 	ui.inputChan = inputChan
 	ui.levelChan = levelChan
 	ui.str2TexSmall = make(map[string]*sdl.Texture)
@@ -92,12 +101,12 @@ func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 		panic(err)
 	}
 
-	ui.eventBackground = ui.getSinglePixel(sdl.Color{0, 0, 0, 128})
-	if err = ui.eventBackground.SetBlendMode(sdl.BLENDMODE_BLEND); err != nil {
+	ui.itemsInventoryBackground = ui.getSinglePixel(sdl.Color{R: 45, G: 45, B: 45, A: 128})
+	if err = ui.itemsInventoryBackground.SetBlendMode(sdl.BLENDMODE_BLEND); err != nil {
 		panic(err)
 	}
 
-	ui.itemsInventoryBackground = ui.getSinglePixel(sdl.Color{120, 120, 120, 128})
+	ui.eventBackground = ui.getSinglePixel(sdl.Color{R: 45, G: 45, B: 45, A: 128})
 	if err = ui.eventBackground.SetBlendMode(sdl.BLENDMODE_BLEND); err != nil {
 		panic(err)
 	}
@@ -234,7 +243,7 @@ func (ui *ui) loadTextureIndex() {
 
 		var rects []sdl.Rect
 		for i := int64(0); i < variationCount; i++ {
-			rects = append(rects, sdl.Rect{int32(x * 32), int32(y * 32), 32, 32})
+			rects = append(rects, sdl.Rect{X: int32(x * 32), Y: int32(y * 32), W: 32, H: 32})
 			x++
 			if x > 62 {
 				x = 0
@@ -321,6 +330,15 @@ func (ui *ui) drawPlayer(level *game.Level) {
 	}
 }
 
+func (ui *ui) DrawInventory(level *game.Level) {
+	ui.renderer.Copy(ui.itemsInventoryBackground, nil, &sdl.Rect{
+		X: 100,
+		Y: 100,
+		W: 500,
+		H: 500,
+	})
+}
+
 func (ui *ui) Draw(level *game.Level) {
 	if ui.centerX == -1 && ui.centerY == -1 {
 		ui.LoadPlayer(level, ui.renderer)
@@ -357,7 +375,7 @@ func (ui *ui) Draw(level *game.Level) {
 				srcRects := ui.textureIndex[tile.Rune]
 				srcRect := srcRects[ui.r.Intn(len(srcRects))]
 				if tile.Visible || tile.Seen {
-					dstRect := sdl.Rect{int32(x*32) + ui.offsetX, int32(y*32) + ui.offsetY, 32, 32}
+					dstRect := sdl.Rect{X: int32(x*32) + ui.offsetX, Y: int32(y*32) + ui.offsetY, W: 32, H: 32}
 					pos := game.Pos{X: x, Y: y}
 					if level.Debug[pos] {
 						if err := ui.textureAtlas.SetColorMod(128, 0, 0); err != nil {
@@ -426,9 +444,9 @@ func (ui *ui) displayEvents(level *game.Level) {
 	for {
 		event := level.Events[i]
 		if event != "" {
-			tex := ui.stringToTexture(event, sdl.Color{255, 0, 0, 0}, FontSmall)
+			tex := ui.stringToTexture(event, sdl.Color{R: 255}, FontSmall)
 			_, _, w, h, _ := tex.Query()
-			err := ui.renderer.Copy(tex, nil, &sdl.Rect{0, int32(count*fontSizeY) + textStart, w, h})
+			err := ui.renderer.Copy(tex, nil, &sdl.Rect{Y: int32(count*fontSizeY) + textStart, W: w, H: h})
 			if err != nil {
 				panic(err)
 			}
@@ -467,7 +485,10 @@ func (ui *ui) displayItems(level *game.Level) {
 		if level.Map[pos.Y][pos.X].Visible {
 			for _, item := range items {
 				itemSrcRect := ui.textureIndex[item.Rune][0]
-				ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{int32(pos.X*32) + ui.offsetX, int32(pos.Y*32) + ui.offsetY, 32, 32})
+				err := ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: int32(pos.X*32) + ui.offsetX, Y: int32(pos.Y*32) + ui.offsetY, W: 32, H: 32})
+				if err != nil {
+					panic(err)
+				}
 			}
 		}
 	}
@@ -481,18 +502,18 @@ func (ui *ui) displayMonsters(level *game.Level) {
 	for pos, monster := range level.Monsters {
 		if level.Map[pos.Y][pos.X].Visible {
 
-			if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 928, Y: 1600, W: 32, H: 32}, &sdl.Rect{int32(level.Monsters[pos].X*32) + ui.offsetX, int32((level.Monsters[pos].Y-1)*32) + ui.offsetY + 20, 32, 5}); err != nil {
+			if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 928, Y: 1600, W: 32, H: 32}, &sdl.Rect{X: int32(level.Monsters[pos].X*32) + ui.offsetX, Y: int32((level.Monsters[pos].Y-1)*32) + ui.offsetY + 20, W: 32, H: 5}); err != nil {
 				panic(err)
 			}
 			var gauge float64
 			gauge = float64(level.Monsters[pos].Hitpoints) / float64(level.Monsters[pos].MaxHitpoints)
 
-			if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 1024, Y: 1600, W: 32, H: 32}, &sdl.Rect{int32(level.Monsters[pos].X*32) + ui.offsetX, int32((level.Monsters[pos].Y-1)*32) + ui.offsetY + 20, int32(32 * gauge), 5}); err != nil {
+			if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 1024, Y: 1600, W: 32, H: 32}, &sdl.Rect{X: int32(level.Monsters[pos].X*32) + ui.offsetX, Y: int32((level.Monsters[pos].Y-1)*32) + ui.offsetY + 20, W: int32(32 * gauge), H: 5}); err != nil {
 				panic(err)
 			}
 
 			monsterSrcRect := ui.textureIndex[monster.Rune][0]
-			err := ui.renderer.Copy(ui.textureAtlas, &monsterSrcRect, &sdl.Rect{int32(pos.X*32) + ui.offsetX, int32(pos.Y*32) + ui.offsetY, 32, 32})
+			err := ui.renderer.Copy(ui.textureAtlas, &monsterSrcRect, &sdl.Rect{X: int32(pos.X*32) + ui.offsetX, Y: int32(pos.Y*32) + ui.offsetY, W: 32, H: 32})
 			if err != nil {
 				panic(err)
 			}
@@ -501,28 +522,43 @@ func (ui *ui) displayMonsters(level *game.Level) {
 }
 
 func (ui *ui) displayStats(level *game.Level) {
+	firstFrameX := 512
+	for i := 0; i < 4; i++ {
+		if err := ui.renderer.Copy(ui.tileMap, &sdl.Rect{X: int32(firstFrameX + i*16), Y: 68, W: 16, H: 16}, &sdl.Rect{X: int32(i * 32), Y: 0, W: 32, H: 32}); err != nil {
+			panic(err)
+		}
+	}
+
+	// Move instruction after arrows
+	tex := ui.stringToTexture("Move", sdl.Color{R: 255}, FontSmall)
+	_, _, w, h, _ := tex.Query()
+	err := ui.renderer.Copy(tex, nil, &sdl.Rect{X: 144, Y: 8, W: w, H: h})
+	if err != nil {
+		panic(err)
+	}
+
 	// Life symbol
-	if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 32, Y: 0, W: 32, H: 32}, &sdl.Rect{0, int32(ui.winHeight / 2), 32, 32}); err != nil {
+	if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 32, Y: 0, W: 32, H: 32}, &sdl.Rect{Y: int32(ui.winHeight / 2), W: 32, H: 32}); err != nil {
 		panic(err)
 	}
 
 	// Drawing Hitpoints count
-	tex := ui.stringToTexture("Life "+strconv.Itoa(level.Player.Hitpoints), sdl.Color{255, 0, 0, 0}, FontSmall)
-	_, _, w, h, _ := tex.Query()
-	err := ui.renderer.Copy(tex, nil, &sdl.Rect{32, int32(ui.winHeight / 2), w, h})
+	tex = ui.stringToTexture("Life "+strconv.Itoa(level.Player.Hitpoints), sdl.Color{R: 255}, FontSmall)
+	_, _, w, h, _ = tex.Query()
+	err = ui.renderer.Copy(tex, nil, &sdl.Rect{X: 32, Y: int32(ui.winHeight / 2), W: w, H: h})
 	if err != nil {
 		panic(err)
 	}
 
 	// Life gauge using red rect on black rect
-	if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 928, Y: 1600, W: 32, H: 32}, &sdl.Rect{int32(level.Player.Pos.X*32) + ui.offsetX, int32((level.Player.Pos.Y-1)*32) + ui.offsetY + 20, 32, 5}); err != nil {
+	if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 928, Y: 1600, W: 32, H: 32}, &sdl.Rect{X: int32(level.Player.Pos.X*32) + ui.offsetX, Y: int32((level.Player.Pos.Y-1)*32) + ui.offsetY + 20, W: 32, H: 5}); err != nil {
 		panic(err)
 	}
 
 	var gauge float64
 	gauge = float64(level.Player.Hitpoints) / float64(level.Player.MaxHitpoints)
 
-	if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 1024, Y: 1600, W: 32, H: 32}, &sdl.Rect{int32(level.Player.Pos.X*32) + ui.offsetX, int32((level.Player.Pos.Y-1)*32) + ui.offsetY + 20, int32(32 * gauge), 5}); err != nil {
+	if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 1024, Y: 1600, W: 32, H: 32}, &sdl.Rect{X: int32(level.Player.Pos.X*32) + ui.offsetX, Y: int32((level.Player.Pos.Y-1)*32) + ui.offsetY + 20, W: int32(32 * gauge), H: 5}); err != nil {
 		panic(err)
 	}
 
@@ -578,7 +614,12 @@ func (ui *ui) Run() {
 				default:
 				}
 				newLevel.LastEvent = game.Empty
-				ui.Draw(newLevel)
+				if ui.state == UIMain {
+					ui.Draw(newLevel)
+				} else {
+					ui.Draw(newLevel)
+					ui.DrawInventory(newLevel)
+				}
 			}
 		default:
 		}
@@ -616,6 +657,12 @@ func (ui *ui) Run() {
 					input = game.Input{Typ: game.Action}
 				case sdl.K_t:
 					input = game.Input{Typ: game.TakeAll}
+				case sdl.K_i:
+					if ui.state == UIMain {
+						ui.state = UIInventory
+					} else {
+						ui.state = UIMain
+					}
 				default:
 					input = game.Input{Typ: game.None}
 				}
