@@ -37,21 +37,27 @@ const (
 )
 
 type ui struct {
-	state                                     uiState
-	sounds                                    sounds
-	winWidth, winHeight                       int
-	renderer                                  *sdl.Renderer
-	window                                    *sdl.Window
-	textureAtlas                              *sdl.Texture
-	tileMap                                   *sdl.Texture
+	state               uiState
+	sounds              sounds
+	winWidth, winHeight int
+	renderer            *sdl.Renderer
+	window              *sdl.Window
+	textureAtlas        *sdl.Texture
+	tileMap             *sdl.Texture
+
+	pTexture                                          *sdl.Texture
+	pWidthTex, pHeightTex                             int32
+	pFromX, pFromY, pFramesX, pFramesY, pCurrentFrame int32
+	pSrc                                              sdl.Rect
+	pDest                                             sdl.Rect
+
+	borders                                   *sdl.Texture
 	textureIndex                              map[rune][]sdl.Rect
 	centerX, centerY                          int
 	r                                         *rand.Rand
 	levelChan                                 chan *game.Level
 	inputChan                                 chan *game.Input
 	offsetX, offsetY                          int32
-	eventBackground                           *sdl.Texture
-	itemsInventoryBackground                  *sdl.Texture
 	fontSmall, fontMedium, fontLarge          *ttf.Font
 	str2TexSmall, str2TexMedium, str2TexLarge map[string]*sdl.Texture
 }
@@ -82,13 +88,15 @@ func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 
 	ui.textureAtlas = ui.imgFileToTexture("ui2d/assets/tiles.png")
 	ui.tileMap = ui.imgFileToTexture("ui2d/assets/tilemap.png")
+	ui.borders = ui.imgFileToTexture("ui2d/assets/paper.jpg")
 
 	ui.loadTextureIndex()
+	ui.LoadPlayer()
 
 	ui.centerX = -1
 	ui.centerY = -1
 
-	ui.fontSmall, err = ttf.OpenFont("ui2d/assets/Kingthings_Foundation.ttf", int(float64(ui.winWidth)*0.015))
+	ui.fontSmall, err = ttf.OpenFont("ui2d/assets/Kingthings_Foundation.ttf", int(float64(ui.winWidth)*0.010))
 	if err != nil {
 		panic(err)
 	}
@@ -98,16 +106,6 @@ func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 	}
 	ui.fontLarge, err = ttf.OpenFont("ui2d/assets/Kingthings_Foundation.ttf", 64)
 	if err != nil {
-		panic(err)
-	}
-
-	ui.itemsInventoryBackground = ui.getSinglePixel(sdl.Color{R: 45, G: 45, B: 45, A: 128})
-	if err = ui.itemsInventoryBackground.SetBlendMode(sdl.BLENDMODE_BLEND); err != nil {
-		panic(err)
-	}
-
-	ui.eventBackground = ui.getSinglePixel(sdl.Color{R: 45, G: 45, B: 45, A: 128})
-	if err = ui.eventBackground.SetBlendMode(sdl.BLENDMODE_BLEND); err != nil {
 		panic(err)
 	}
 
@@ -300,48 +298,75 @@ func init() {
 
 }
 
-func (ui *ui) LoadPlayer(level *game.Level, r *sdl.Renderer) {
-	image, err := img.Load(level.Player.Filename)
+func (ui *ui) LoadPlayer() {
+	ui.pCurrentFrame = 0
+	ui.pFramesX = 4
+	ui.pFramesY = 4
+
+	image, err := img.Load("ui2d/assets/george.png")
 	if err != nil {
 		panic(err)
 	}
 	defer image.Free()
-
-	level.Player.Texture, err = r.CreateTextureFromSurface(image)
+	ui.pTexture, err = ui.renderer.CreateTextureFromSurface(image)
 	if err != nil {
 		panic(err)
 	}
 
-	_, _, imageWidth, imageHeight, _ := level.Player.Texture.Query()
-	level.Player.Width = imageWidth / level.Player.FramesX
-	level.Player.Height = imageHeight / level.Player.FramesY
+	_, _, imageWidth, imageHeight, _ := ui.pTexture.Query()
+	ui.pWidthTex = imageWidth / ui.pFramesX
+	ui.pHeightTex = imageHeight / ui.pFramesY
 }
 
 func (ui *ui) drawPlayer(level *game.Level) {
 	p := level.Player
-	p.FromY = p.CurrentFrame * p.Width
+	ui.pFromY = ui.pCurrentFrame * ui.pWidthTex
 
-	p.Src = sdl.Rect{X: p.FromX, Y: p.FromY, W: p.Width, H: p.Height}
-	p.Dest = sdl.Rect{X: int32(p.X*32) + ui.offsetX - ((p.Width - 32) / 2), Y: int32(p.Y*32) + ui.offsetY - ((p.Height - 32) / 2), W: p.Width, H: p.Height}
+	ui.pSrc = sdl.Rect{X: ui.pFromX, Y: ui.pFromY, W: ui.pWidthTex, H: ui.pHeightTex}
+	ui.pDest = sdl.Rect{X: int32(p.X*32) + ui.offsetX - ((ui.pWidthTex - 32) / 2), Y: int32(p.Y*32) + ui.offsetY - ((ui.pHeightTex - 32) / 2), W: ui.pWidthTex, H: ui.pHeightTex}
 
-	err := ui.renderer.Copy(p.Texture, &p.Src, &p.Dest)
+	err := ui.renderer.Copy(ui.pTexture, &ui.pSrc, &ui.pDest)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (ui *ui) DrawInventory(level *game.Level) {
-	ui.renderer.Copy(ui.itemsInventoryBackground, nil, &sdl.Rect{
-		X: 100,
-		Y: 100,
-		W: 500,
-		H: 500,
-	})
+func (ui *ui) drawInventory(level *game.Level) {
+	invWidth := int32(float64(ui.winWidth) * 0.40)
+	invHeight := int32(float64(ui.winHeight) * 0.75)
+	offsetX := (int32(ui.winWidth) - invWidth) / 2
+	offsetY := (int32(ui.winHeight) - invHeight) / 2
+
+	playerSrcRect := sdl.Rect{X: 0, Y: 0, W: 48, H: 48}
+	playerX := ((invWidth - (invWidth / 2)) / 2) + offsetX
+	playerY := ((invHeight - (invHeight / 2)) / 2) + offsetY
+
+	ui.renderer.Copy(ui.borders, nil, &sdl.Rect{X: offsetX, Y: offsetY, W: invWidth, H: invHeight})
+	ui.renderer.Copy(ui.pTexture, &playerSrcRect, &sdl.Rect{X: playerX, Y: playerY, W: invWidth / 2, H: invHeight / 2})
+
+	ui.renderer.Present()
 }
 
-func (ui *ui) Draw(level *game.Level) {
+func (ui *ui) UpdatePlayer(input game.InputType) {
+	ui.pCurrentFrame++
+	if ui.pCurrentFrame >= ui.pFramesY {
+		ui.pCurrentFrame = 0
+	}
+	switch input {
+	case game.Up:
+		ui.pFromX = 2 * ui.pWidthTex
+	case game.Down:
+		ui.pFromX = 0
+	case game.Left:
+		ui.pFromX = ui.pWidthTex
+	case game.Right:
+		ui.pFromX = 3 * ui.pWidthTex
+	}
+
+}
+
+func (ui *ui) draw(level *game.Level) {
 	if ui.centerX == -1 && ui.centerY == -1 {
-		ui.LoadPlayer(level, ui.renderer)
 		ui.centerX = level.Player.X
 		ui.centerY = level.Player.Y
 	}
@@ -430,140 +455,6 @@ func (ui *ui) Draw(level *game.Level) {
 	ui.renderer.Present()
 }
 
-func (ui *ui) displayEvents(level *game.Level) {
-	textStart := int32(float64(ui.winHeight) * .68)
-	textWidth := int32(float64(ui.winWidth) * .25)
-	err := ui.renderer.Copy(ui.eventBackground, nil, &sdl.Rect{X: 0, Y: textStart, W: textWidth, H: int32(ui.winHeight) - textStart})
-	if err != nil {
-		panic(err)
-	}
-
-	i := level.EventPos
-	count := 0
-	_, fontSizeY, _ := ui.fontSmall.SizeUTF8("A")
-	for {
-		event := level.Events[i]
-		if event != "" {
-			tex := ui.stringToTexture(event, sdl.Color{R: 255}, FontSmall)
-			_, _, w, h, _ := tex.Query()
-			err := ui.renderer.Copy(tex, nil, &sdl.Rect{Y: int32(count*fontSizeY) + textStart, W: w, H: h})
-			if err != nil {
-				panic(err)
-			}
-
-		}
-		i = (i + 1) % (len(level.Events))
-		count++
-		if i == level.EventPos {
-			break
-		}
-	}
-
-	// draw inventory
-	inventoryStart := int32(float64(ui.winWidth) * 0.7)
-	inventoryWidth := int32(ui.winWidth) - inventoryStart
-
-	err = ui.renderer.Copy(ui.itemsInventoryBackground, nil, &sdl.Rect{X: inventoryStart, Y: int32(ui.winHeight - 32), W: inventoryWidth, H: 32})
-	if err != nil {
-		panic(err)
-	}
-
-	items := level.Player.Items
-	for i, item := range items {
-		itemSrcRect := ui.textureIndex[item.Rune][0]
-		err := ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: int32(ui.winWidth - 32 - i*32), Y: int32(ui.winHeight - 32), W: 32, H: 32})
-		if err != nil {
-			panic(err)
-		}
-	}
-
-}
-
-func (ui *ui) displayItems(level *game.Level) {
-	// Display Items
-	for pos, items := range level.Items {
-		if level.Map[pos.Y][pos.X].Visible {
-			for _, item := range items {
-				itemSrcRect := ui.textureIndex[item.Rune][0]
-				err := ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: int32(pos.X*32) + ui.offsetX, Y: int32(pos.Y*32) + ui.offsetY, W: 32, H: 32})
-				if err != nil {
-					panic(err)
-				}
-			}
-		}
-	}
-}
-
-func (ui *ui) displayMonsters(level *game.Level) {
-	// Display Monsters
-	if err := ui.textureAtlas.SetColorMod(255, 255, 255); err != nil {
-		panic(err)
-	}
-	for pos, monster := range level.Monsters {
-		if level.Map[pos.Y][pos.X].Visible {
-
-			if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 928, Y: 1600, W: 32, H: 32}, &sdl.Rect{X: int32(level.Monsters[pos].X*32) + ui.offsetX, Y: int32((level.Monsters[pos].Y-1)*32) + ui.offsetY + 20, W: 32, H: 5}); err != nil {
-				panic(err)
-			}
-			var gauge float64
-			gauge = float64(level.Monsters[pos].Hitpoints) / float64(level.Monsters[pos].MaxHitpoints)
-
-			if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 1024, Y: 1600, W: 32, H: 32}, &sdl.Rect{X: int32(level.Monsters[pos].X*32) + ui.offsetX, Y: int32((level.Monsters[pos].Y-1)*32) + ui.offsetY + 20, W: int32(32 * gauge), H: 5}); err != nil {
-				panic(err)
-			}
-
-			monsterSrcRect := ui.textureIndex[monster.Rune][0]
-			err := ui.renderer.Copy(ui.textureAtlas, &monsterSrcRect, &sdl.Rect{X: int32(pos.X*32) + ui.offsetX, Y: int32(pos.Y*32) + ui.offsetY, W: 32, H: 32})
-			if err != nil {
-				panic(err)
-			}
-		}
-	}
-}
-
-func (ui *ui) displayStats(level *game.Level) {
-	firstFrameX := 512
-	for i := 0; i < 4; i++ {
-		if err := ui.renderer.Copy(ui.tileMap, &sdl.Rect{X: int32(firstFrameX + i*16), Y: 68, W: 16, H: 16}, &sdl.Rect{X: int32(i * 32), Y: 0, W: 32, H: 32}); err != nil {
-			panic(err)
-		}
-	}
-
-	// Move instruction after arrows
-	tex := ui.stringToTexture("Move", sdl.Color{R: 255}, FontSmall)
-	_, _, w, h, _ := tex.Query()
-	err := ui.renderer.Copy(tex, nil, &sdl.Rect{X: 144, Y: 8, W: w, H: h})
-	if err != nil {
-		panic(err)
-	}
-
-	// Life symbol
-	if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 32, Y: 0, W: 32, H: 32}, &sdl.Rect{Y: int32(ui.winHeight / 2), W: 32, H: 32}); err != nil {
-		panic(err)
-	}
-
-	// Drawing Hitpoints count
-	tex = ui.stringToTexture("Life "+strconv.Itoa(level.Player.Hitpoints), sdl.Color{R: 255}, FontSmall)
-	_, _, w, h, _ = tex.Query()
-	err = ui.renderer.Copy(tex, nil, &sdl.Rect{X: 32, Y: int32(ui.winHeight / 2), W: w, H: h})
-	if err != nil {
-		panic(err)
-	}
-
-	// Life gauge using red rect on black rect
-	if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 928, Y: 1600, W: 32, H: 32}, &sdl.Rect{X: int32(level.Player.Pos.X*32) + ui.offsetX, Y: int32((level.Player.Pos.Y-1)*32) + ui.offsetY + 20, W: 32, H: 5}); err != nil {
-		panic(err)
-	}
-
-	var gauge float64
-	gauge = float64(level.Player.Hitpoints) / float64(level.Player.MaxHitpoints)
-
-	if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 1024, Y: 1600, W: 32, H: 32}, &sdl.Rect{X: int32(level.Player.Pos.X*32) + ui.offsetX, Y: int32((level.Player.Pos.Y-1)*32) + ui.offsetY + 20, W: int32(32 * gauge), H: 5}); err != nil {
-		panic(err)
-	}
-
-}
-
 func (ui *ui) getSinglePixel(color sdl.Color) *sdl.Texture {
 	tex, err := ui.renderer.CreateTexture(sdl.PIXELFORMAT_ABGR8888, sdl.TEXTUREACCESS_STATIC, 1, 1)
 	if err != nil {
@@ -615,14 +506,15 @@ func (ui *ui) Run() {
 				}
 				newLevel.LastEvent = game.Empty
 				if ui.state == UIMain {
-					ui.Draw(newLevel)
+					ui.draw(newLevel)
 				} else {
-					ui.Draw(newLevel)
-					ui.DrawInventory(newLevel)
+					ui.draw(newLevel)
+					ui.drawInventory(newLevel)
 				}
 			}
 		default:
 		}
+
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
 			switch e := event.(type) {
 			case *sdl.QuitEvent:
@@ -647,12 +539,16 @@ func (ui *ui) Run() {
 				switch e.Keysym.Sym {
 				case sdl.K_UP:
 					input = game.Input{Typ: game.Up}
+					ui.UpdatePlayer(game.Up)
 				case sdl.K_DOWN:
 					input = game.Input{Typ: game.Down}
+					ui.UpdatePlayer(game.Down)
 				case sdl.K_LEFT:
 					input = game.Input{Typ: game.Left}
+					ui.UpdatePlayer(game.Left)
 				case sdl.K_RIGHT:
 					input = game.Input{Typ: game.Right}
+					ui.UpdatePlayer(game.Right)
 				case sdl.K_e:
 					input = game.Input{Typ: game.Action}
 				case sdl.K_t:
@@ -660,8 +556,11 @@ func (ui *ui) Run() {
 				case sdl.K_i:
 					if ui.state == UIMain {
 						ui.state = UIInventory
+						ui.draw(newLevel)
+						ui.drawInventory(newLevel)
 					} else {
 						ui.state = UIMain
+						ui.draw(newLevel)
 					}
 				default:
 					input = game.Input{Typ: game.None}
