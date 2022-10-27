@@ -405,6 +405,8 @@ func (ui *ui) drawInventory(level *game.Level) {
 		panic(err)
 	}
 
+	ui.drawEmptyInventory(invWidth, itemW, itemH, offsetX, offsetY, level)
+
 	// draw panel items
 	//Head
 	if err := ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("buttonSquare_blue_pressed.png"), &sdl.Rect{X: offsetX + invWidth/2 - (itemW / 2), Y: offsetY + itemH, W: itemW, H: itemH}); err != nil {
@@ -427,35 +429,66 @@ func (ui *ui) drawInventory(level *game.Level) {
 		panic(err)
 	}
 
+	var countX int32 = 0
+	var countY int32 = 0
 	for i, item := range level.Player.Items {
 		itemSrcRect := ui.textureIndex[item.Rune][0]
+		if item.Equipped {
+			switch item.Location {
+			case game.Head:
+				locationX = offsetX + invWidth/2 - (itemW / 2)
+				locationY = offsetY + itemH
+			case game.RightHand:
+				locationX = offsetX + itemW
+				locationY = offsetY + itemH*4
+			case game.LeftHand:
+				locationX = offsetX + invWidth - itemW*2
+				locationY = offsetY + itemH*4
+			case game.Foots:
+				locationX = offsetX + invWidth/2 - (itemW / 2)
+				locationY = offsetY + invHeight - itemH*2
+			case game.Chest:
+				locationX = offsetX + itemW
+				locationY = offsetY + itemH*3
+			default:
+				locationX = offsetX + int32(i)*itemW
+				locationY = offsetY + invHeight - itemH
+			}
 
-		switch item.Location {
-		case game.Head:
-			locationX = offsetX + invWidth/2 - (itemW / 2)
-			locationY = offsetY + itemH
-		case game.RightHand:
-			locationX = offsetX + itemW
-			locationY = offsetY + itemH*4
-		case game.LeftHand:
-			locationX = offsetX + invWidth - itemW*2
-			locationY = offsetY + itemH*4
-		case game.Foots:
-			locationX = offsetX + invWidth/2 - (itemW / 2)
-			locationY = offsetY + invHeight - itemH*2
-		case game.Chest:
-			locationX = offsetX + itemW
-			locationY = offsetY + itemH*3
-		default:
-			locationX = offsetX + int32(i)*32
-			locationY = offsetY + invHeight - 32
-		}
+			if err := ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: locationX, Y: locationY, W: itemW, H: itemH}); err != nil {
+				panic(err)
+			}
+		} else {
+			if countX%5 == 0 {
+				countX = 0
+				countY++
+			}
+			locationX = offsetX + invWidth + itemW*countX
+			locationY = offsetY + itemH*countY
 
-		if err := ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: locationX, Y: locationY, W: itemW, H: itemH}); err != nil {
-			panic(err)
+			if err := ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: locationX, Y: locationY, W: itemW, H: itemH}); err != nil {
+				panic(err)
+			}
+			countX++
 		}
 	}
 	ui.renderer.Present()
+}
+
+func (ui *ui) drawEmptyInventory(invWidth, itemW, itemH, offsetX, offsetY int32, level *game.Level) {
+	var countX, countY, locationX, locationY int32
+	for i := 0; i < level.Player.InventorySize; i++ {
+		if i%5 == 0 {
+			countX = 0
+			countY++
+		}
+		locationX = offsetX + invWidth + itemW*countX
+		locationY = offsetY + itemH*countY
+		if err := ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("buttonSquare_brown_pressed.png"), &sdl.Rect{X: locationX, Y: locationY, W: itemW, H: itemH}); err != nil {
+			panic(err)
+		}
+		countX++
+	}
 }
 
 func (ui *ui) UpdatePlayer(input game.InputType) {

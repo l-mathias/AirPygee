@@ -87,13 +87,14 @@ type Entity struct {
 
 type Character struct {
 	Entity
-	Hitpoints    int
-	MaxHitpoints int
-	Strength     int
-	Speed        float64
-	ActionPoints float64
-	SightRange   int
-	Items        []*Item
+	Hitpoints     int
+	MaxHitpoints  int
+	Strength      int
+	Speed         float64
+	ActionPoints  float64
+	SightRange    int
+	Items         []*Item
+	InventorySize int
 }
 
 type GameEvent int
