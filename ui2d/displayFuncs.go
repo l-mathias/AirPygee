@@ -22,13 +22,13 @@ func (ui *ui) displayStats(level *game.Level) {
 		panic(err)
 	}
 
-	// Life symbol
+	// Life symbo
 	if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 32, Y: 0, W: 32, H: 32}, &sdl.Rect{Y: int32(ui.winHeight / 2), W: 32, H: 32}); err != nil {
 		panic(err)
 	}
 
 	// Drawing Hitpoints count
-	tex = ui.stringToTexture("Life "+strconv.Itoa(level.Player.Hitpoints), sdl.Color{R: 255}, FontSmall)
+	tex = ui.stringToTexture("Life "+strconv.Itoa(level.Player.Hitpoints), sdl.Color{R: 255}, FontMedium)
 	_, _, w, h, _ = tex.Query()
 	err = ui.renderer.Copy(tex, nil, &sdl.Rect{X: 32, Y: int32(ui.winHeight / 2), W: w, H: h})
 	if err != nil {
@@ -97,7 +97,7 @@ func (ui *ui) displayEvents(level *game.Level) {
 	textWidth := int32(float64(ui.winWidth) * .25)
 	_, fontSizeY, _ := ui.fontSmall.SizeUTF8("A")
 
-	err := ui.renderer.Copy(ui.borders, nil, &sdl.Rect{X: 0, Y: int32(ui.winHeight) - (int32(ui.winHeight) - textStartY + int32(fontSizeY)), W: textWidth, H: int32(ui.winHeight) - textStartY + int32(fontSizeY)})
+	err := ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("panel_beige.png"), &sdl.Rect{X: 0, Y: int32(ui.winHeight) - (int32(ui.winHeight) - textStartY + int32(fontSizeY)), W: textWidth, H: int32(ui.winHeight) - textStartY + int32(fontSizeY)})
 	if err != nil {
 		panic(err)
 	}
@@ -108,9 +108,8 @@ func (ui *ui) displayEvents(level *game.Level) {
 	for {
 		event := level.Events[i]
 		if event != "" {
-			tex := ui.stringToTexture(event, sdl.Color{R: 255}, FontSmall)
+			tex := ui.stringToTexture(event, sdl.Color{R: 100, G: 50}, FontSmall)
 			_, _, w, h, _ := tex.Query()
-			//err := ui.renderer.Copy(tex, nil, &sdl.Rect{X: textStartX, Y: int32(count*fontSizeY) + textStartY, W: w, H: h})
 
 			err := ui.renderer.Copy(tex, nil, &sdl.Rect{X: textStartX, Y: int32(count*fontSizeY) + (int32(ui.winHeight) - (int32(ui.winHeight) - textStartY)), W: w, H: h})
 			if err != nil {
@@ -128,7 +127,7 @@ func (ui *ui) displayEvents(level *game.Level) {
 	inventoryStart := int32(float64(ui.winWidth) * 0.7)
 	inventoryWidth := int32(ui.winWidth) - inventoryStart
 
-	err = ui.renderer.Copy(ui.borders, nil, &sdl.Rect{X: inventoryStart, Y: int32(ui.winHeight - 32), W: inventoryWidth, H: 32})
+	err = ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("buttonLong_beige_pressed.png"), &sdl.Rect{X: inventoryStart, Y: int32(ui.winHeight - 32), W: inventoryWidth, H: 32})
 	if err != nil {
 		panic(err)
 	}

@@ -9,10 +9,13 @@ package ui2d
 import (
 	"AirPygee/game"
 	"bufio"
+	"encoding/xml"
+	"fmt"
 	"github.com/veandco/go-sdl2/img"
 	"github.com/veandco/go-sdl2/mix"
 	"github.com/veandco/go-sdl2/sdl"
 	"github.com/veandco/go-sdl2/ttf"
+	"io/ioutil"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -45,13 +48,17 @@ type ui struct {
 	textureAtlas        *sdl.Texture
 	tileMap             *sdl.Texture
 
+	//player
 	pTexture                                          *sdl.Texture
 	pWidthTex, pHeightTex                             int32
 	pFromX, pFromY, pFramesX, pFramesY, pCurrentFrame int32
 	pSrc                                              sdl.Rect
 	pDest                                             sdl.Rect
 
-	borders                                   *sdl.Texture
+	// UI Theme
+	uipack       *sdl.Texture
+	texturesList SubTextures
+
 	textureIndex                              map[rune][]sdl.Rect
 	centerX, centerY                          int
 	r                                         *rand.Rand
@@ -88,10 +95,11 @@ func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 
 	ui.textureAtlas = ui.imgFileToTexture("ui2d/assets/tiles.png")
 	ui.tileMap = ui.imgFileToTexture("ui2d/assets/tilemap.png")
-	ui.borders = ui.imgFileToTexture("ui2d/assets/paper.jpg")
+	ui.uipack = ui.imgFileToTexture("ui2d/assets/uipack_rpg_sheet.png")
 
 	ui.loadTextureIndex()
 	ui.LoadPlayer()
+	ui.loadSpritesheetFromXml()
 
 	ui.centerX = -1
 	ui.centerY = -1
@@ -331,19 +339,122 @@ func (ui *ui) drawPlayer(level *game.Level) {
 	}
 }
 
+type SubTextures struct {
+	XMLName    xml.Name     `xml:"TextureAtlas"`
+	SubTexture []SubTexture `xml:"SubTexture"`
+}
+
+type SubTexture struct {
+	XMLName xml.Name `xml:"SubTexture"`
+	Name    string   `xml:"name,attr"`
+	X       string   `xml:"x,attr"`
+	Y       string   `xml:"y,attr"`
+	Width   string   `xml:"width,attr"`
+	Height  string   `xml:"height,attr"`
+}
+
+func (ui *ui) loadSpritesheetFromXml() {
+	xmlFile, err := os.Open("ui2d/assets/uipack_rpg_sheet.xml")
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	defer xmlFile.Close()
+
+	byteValue, _ := ioutil.ReadAll(xmlFile)
+
+	xml.Unmarshal(byteValue, &ui.texturesList)
+}
+
+func (ui *ui) getRectFromTextureName(name string) *sdl.Rect {
+	for i := 0; i < len(ui.texturesList.SubTexture); i++ {
+		if ui.texturesList.SubTexture[i].Name == name {
+			x, _ := strconv.Atoi(ui.texturesList.SubTexture[i].X)
+			y, _ := strconv.Atoi(ui.texturesList.SubTexture[i].Y)
+			w, _ := strconv.Atoi(ui.texturesList.SubTexture[i].Width)
+			h, _ := strconv.Atoi(ui.texturesList.SubTexture[i].Height)
+			return &sdl.Rect{
+				X: int32(x),
+				Y: int32(y),
+				W: int32(w),
+				H: int32(h),
+			}
+		}
+	}
+	return &sdl.Rect{}
+}
+
 func (ui *ui) drawInventory(level *game.Level) {
 	invWidth := int32(float64(ui.winWidth) * 0.40)
 	invHeight := int32(float64(ui.winHeight) * 0.75)
 	offsetX := (int32(ui.winWidth) - invWidth) / 2
 	offsetY := (int32(ui.winHeight) - invHeight) / 2
+	var locationX, locationY, itemW, itemH int32
+	itemW = int32(float64(invWidth) * .15)
+	itemH = int32(float64(invHeight) * .15)
 
 	playerSrcRect := sdl.Rect{X: 0, Y: 0, W: 48, H: 48}
 	playerX := ((invWidth - (invWidth / 2)) / 2) + offsetX
 	playerY := ((invHeight - (invHeight / 2)) / 2) + offsetY
 
-	ui.renderer.Copy(ui.borders, nil, &sdl.Rect{X: offsetX, Y: offsetY, W: invWidth, H: invHeight})
-	ui.renderer.Copy(ui.pTexture, &playerSrcRect, &sdl.Rect{X: playerX, Y: playerY, W: invWidth / 2, H: invHeight / 2})
+	if err := ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("panel_beige.png"), &sdl.Rect{X: offsetX, Y: offsetY, W: invWidth, H: invHeight}); err != nil {
+		panic(err)
+	}
 
+	if err := ui.renderer.Copy(ui.pTexture, &playerSrcRect, &sdl.Rect{X: playerX, Y: playerY, W: invWidth / 2, H: invHeight / 2}); err != nil {
+		panic(err)
+	}
+
+	// draw panel items
+	//Head
+	if err := ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("buttonSquare_blue_pressed.png"), &sdl.Rect{X: offsetX + invWidth/2 - (itemW / 2), Y: offsetY + itemH, W: itemW, H: itemH}); err != nil {
+		panic(err)
+	}
+	//RightHand
+	if err := ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("buttonSquare_blue_pressed.png"), &sdl.Rect{X: offsetX + itemW, Y: offsetY + itemH*4, W: itemW, H: itemH}); err != nil {
+		panic(err)
+	}
+	//LeftHand
+	if err := ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("buttonSquare_blue_pressed.png"), &sdl.Rect{X: offsetX + invWidth - itemW*2, Y: offsetY + itemH*4, W: itemW, H: itemH}); err != nil {
+		panic(err)
+	}
+	//Foots
+	if err := ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("buttonSquare_blue_pressed.png"), &sdl.Rect{X: offsetX + invWidth/2 - (itemW / 2), Y: offsetY + invHeight - itemH*2, W: itemW, H: itemH}); err != nil {
+		panic(err)
+	}
+	//Chest
+	if err := ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("buttonSquare_blue_pressed.png"), &sdl.Rect{X: offsetX + itemW, Y: offsetY + itemH*3, W: itemW, H: itemH}); err != nil {
+		panic(err)
+	}
+
+	for i, item := range level.Player.Items {
+		itemSrcRect := ui.textureIndex[item.Rune][0]
+
+		switch item.Location {
+		case game.Head:
+			locationX = offsetX + invWidth/2 - (itemW / 2)
+			locationY = offsetY + itemH
+		case game.RightHand:
+			locationX = offsetX + itemW
+			locationY = offsetY + itemH*4
+		case game.LeftHand:
+			locationX = offsetX + invWidth - itemW*2
+			locationY = offsetY + itemH*4
+		case game.Foots:
+			locationX = offsetX + invWidth/2 - (itemW / 2)
+			locationY = offsetY + invHeight - itemH*2
+		case game.Chest:
+			locationX = offsetX + itemW
+			locationY = offsetY + itemH*3
+		default:
+			locationX = offsetX + int32(i)*32
+			locationY = offsetY + invHeight - 32
+		}
+
+		if err := ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: locationX, Y: locationY, W: itemW, H: itemH}); err != nil {
+			panic(err)
+		}
+	}
 	ui.renderer.Present()
 }
 
