@@ -52,6 +52,8 @@ type Tile struct {
 	OverlayRune rune
 	Visible     bool
 	Seen        bool
+	Walkable    bool
+	Actionable  bool
 }
 
 type Input struct {
@@ -82,8 +84,10 @@ type LevelPos struct {
 
 type Entity struct {
 	Pos
-	Name string
-	Rune rune
+	CameFrom Pos
+	WantedTo Pos
+	Name     string
+	Rune     rune
 }
 
 type Character struct {
@@ -105,6 +109,7 @@ const (
 	Empty GameEvent = iota
 	Move
 	DoorOpen
+	DoorClose
 	Attack
 	Hit
 	Portal
@@ -246,7 +251,7 @@ func canWalk(level *Level, pos Pos) bool {
 	if inRange(level, pos) {
 		t := level.Map[pos.Y][pos.X]
 		switch {
-		case t.Rune == ClosedDoor, t.Rune == StoneWall, t.Rune == Blank, t.OverlayRune == ClosedDoor:
+		case !t.Walkable:
 			return false
 		}
 		_, exists := level.Monsters[pos]
@@ -261,7 +266,13 @@ func canWalk(level *Level, pos Pos) bool {
 func checkDoor(level *Level, pos Pos) {
 	if level.Map[pos.Y][pos.X].OverlayRune == ClosedDoor {
 		level.Map[pos.Y][pos.X].OverlayRune = OpenDoor
+		level.Map[pos.Y][pos.X].Walkable = true
 		level.LastEvent = DoorOpen
+		level.lineOfSight()
+	} else if level.Map[pos.Y][pos.X].OverlayRune == OpenDoor {
+		level.Map[pos.Y][pos.X].OverlayRune = ClosedDoor
+		level.Map[pos.Y][pos.X].Walkable = false
+		level.LastEvent = DoorClose
 		level.lineOfSight()
 	}
 }
@@ -270,7 +281,7 @@ func canSeeTrough(level *Level, pos Pos) bool {
 	if inRange(level, pos) {
 		t := level.Map[pos.Y][pos.X]
 		switch {
-		case t.Rune == ClosedDoor, t.Rune == StoneWall, t.Rune == Blank, t.OverlayRune == ClosedDoor:
+		case !t.Walkable:
 			return false
 		default:
 			return true
@@ -327,6 +338,7 @@ func (game *Game) dead() {
 func (game *Game) resolveMovement(pos Pos) {
 	level := game.CurrentLevel
 	monster, exists := game.CurrentLevel.Monsters[pos]
+	game.CurrentLevel.Player.CameFrom = game.CurrentLevel.Player.Pos
 	if exists {
 		game.CurrentLevel.Attack(&level.Player.Character, &monster.Character)
 		if monster.Hitpoints <= 0 {
@@ -338,7 +350,7 @@ func (game *Game) resolveMovement(pos Pos) {
 	} else if canWalk(level, pos) {
 		game.Move(pos)
 	} else {
-		checkDoor(level, pos)
+		level.Player.WantedTo = pos
 	}
 }
 
@@ -373,6 +385,35 @@ func (game *Game) equip(itemToEquip *Item) {
 	}
 }
 
+func (game *Game) action(pos Pos) {
+	switch game.CurrentLevel.Map[pos.Y][pos.X].OverlayRune {
+	case ClosedDoor:
+		checkDoor(game.CurrentLevel, pos)
+	case OpenDoor:
+		checkDoor(game.CurrentLevel, pos)
+	}
+}
+
+func (level *Level) FrontOf() Pos {
+	cameFrom := level.Player.CameFrom
+	currentPos := level.Player.Pos
+	switch {
+	// came from Left so look to right
+	case cameFrom.X < currentPos.X:
+		return Pos{currentPos.X + 1, currentPos.Y}
+	case cameFrom.X > currentPos.X:
+		return Pos{currentPos.X - 1, currentPos.Y}
+	case cameFrom.Y < currentPos.Y:
+		return Pos{currentPos.X, currentPos.Y + 1}
+	case cameFrom.Y > currentPos.Y:
+		return Pos{currentPos.X, currentPos.Y - 1}
+	case cameFrom == currentPos:
+		return level.Player.WantedTo
+	default:
+		return Pos{}
+	}
+}
+
 func (game *Game) handleInput(input *Input) {
 	p := game.CurrentLevel.Player
 	switch input.Typ {
@@ -389,7 +430,8 @@ func (game *Game) handleInput(input *Input) {
 		newPos := Pos{p.X + 1, p.Y}
 		game.resolveMovement(newPos)
 	case Action:
-		fmt.Println("Action launched")
+		//fmt.Println(game.CurrentLevel.Map[game.frontOf().Y][game.frontOf().X].OverlayRune)
+		game.action(game.CurrentLevel.FrontOf())
 	case TakeAll:
 		game.pickup(game.CurrentLevel.Player.Pos, nil)
 	case TakeItem:
@@ -522,19 +564,26 @@ func (game *Game) loadLevels() map[string]*Level {
 			line := levelLines[y]
 			for x, c := range line {
 				pos := Pos{X: x, Y: y}
+				level.Map[y][x].Walkable = true
+				level.Map[y][x].Actionable = false
 				switch c {
 				case ' ', '\n', '\t', '\r':
 					level.Map[y][x].Rune = Blank
+					level.Map[y][x].Walkable = false
 				case '#':
 					level.Map[y][x].Rune = StoneWall
+					level.Map[y][x].Walkable = false
 				case '.':
 					level.Map[y][x].Rune = DirtFloor
 				case '|':
 					level.Map[y][x].OverlayRune = ClosedDoor
 					level.Map[y][x].Rune = Pending
+					level.Map[y][x].Walkable = false
+					level.Map[y][x].Actionable = true
 				case '/':
 					level.Map[y][x].OverlayRune = OpenDoor
 					level.Map[y][x].Rune = Pending
+					level.Map[y][x].Actionable = true
 				case 'd':
 					level.Map[y][x].OverlayRune = DownStair
 					level.Map[y][x].Rune = Pending
@@ -543,14 +592,12 @@ func (game *Game) loadLevels() map[string]*Level {
 					level.Map[y][x].Rune = Pending
 				case 's':
 					level.Items[pos] = append(level.Items[pos], NewSword(pos))
-					level.Items[pos] = append(level.Items[pos], NewHelmet(pos))
 					level.Map[y][x].Rune = Pending
 				case 'h':
 					level.Items[pos] = append(level.Items[pos], NewHelmet(pos))
 					level.Map[y][x].Rune = Pending
 				case '@':
-					level.Player.X = x
-					level.Player.Y = y
+					level.Player.Pos = pos
 					level.Map[y][x].Rune = Pending
 				case 'R':
 					level.Monsters[pos] = NewRat(pos)

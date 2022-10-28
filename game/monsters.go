@@ -6,7 +6,7 @@ type Monster struct {
 
 func NewRat(p Pos) *Monster {
 	return &Monster{Character{
-		Entity:       Entity{p, "Rat", 'R'},
+		Entity:       Entity{Pos: p, Name: "Rat", Rune: 'R'},
 		Hitpoints:    5,
 		MaxHitpoints: 5,
 		Strength:     1,
@@ -17,7 +17,7 @@ func NewRat(p Pos) *Monster {
 
 func NewSpider(p Pos) *Monster {
 	return &Monster{Character{
-		Entity:       Entity{p, "Spider", 'S'},
+		Entity:       Entity{Pos: p, Name: "Spider", Rune: 'S'},
 		Hitpoints:    10,
 		MaxHitpoints: 10,
 		Strength:     2,

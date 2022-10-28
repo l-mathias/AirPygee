@@ -38,6 +38,7 @@ const (
 	UIMain uiState = iota
 	UIInventory
 	itemSizeRatio float64 = 0.15
+	tileSize      int32   = 32
 )
 
 type ui struct {
@@ -60,16 +61,21 @@ type ui struct {
 	uipack       *sdl.Texture
 	texturesList SubTextures
 
-	textureIndex                                                                                                                   map[rune][]sdl.Rect
-	centerX, centerY                                                                                                               int
-	r                                                                                                                              *rand.Rand
-	levelChan                                                                                                                      chan *game.Level
-	inputChan                                                                                                                      chan *game.Input
-	offsetX, offsetY                                                                                                               int32
-	invOffsetX, invOffsetY, invWidth, invHeight, itemW, itemH                                                                      int32
-	invHeadX, invHeadY, invLHandX, invLHandY, invRHandX, invRHandY, invLegsX, invLegsY, invChestX, invChestY, invFootsX, invFootsY int32
-	fontSmall, fontMedium, fontLarge                                                                                               *ttf.Font
-	str2TexSmall, str2TexMedium, str2TexLarge                                                                                      map[string]*sdl.Texture
+	textureIndex     map[rune][]sdl.Rect
+	centerX, centerY int
+	r                *rand.Rand
+	levelChan        chan *game.Level
+	inputChan        chan *game.Input
+	offsetX, offsetY int32
+
+	// Inventory
+	invOffsetX, invOffsetY, invWidth, invHeight, itemW, itemH      int32
+	invHeadX, invHeadY, invLHandX, invLHandY, invRHandX, invRHandY int32
+	invLegsX, invLegsY, invChestX, invChestY, invFootsX, invFootsY int32
+
+	// Fonts
+	fontSmall, fontMedium, fontLarge          *ttf.Font
+	str2TexSmall, str2TexMedium, str2TexLarge map[string]*sdl.Texture
 }
 
 func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
@@ -169,6 +175,7 @@ func (ui *ui) loadSounds() {
 
 	ui.sounds.footstep = buildSoundsVariations("ui2d/assets/audio/sounds/Kenney/footstep*.ogg")
 	ui.sounds.openDoor = buildSoundsVariations("ui2d/assets/audio/sounds/Kenney/doorOpen*.ogg")
+	ui.sounds.closeDoor = buildSoundsVariations("ui2d/assets/audio/sounds/Kenney/doorClose*.ogg")
 	ui.sounds.swing = buildSoundsVariations("ui2d/assets/audio/sounds/battle/swing*.wav")
 	ui.sounds.pickup = buildSoundsVariations("ui2d/assets/audio/sounds/Kenney/cloth*.ogg")
 }
@@ -198,10 +205,11 @@ func playRandomSound(chunks []*mix.Chunk, volume int) {
 }
 
 type sounds struct {
-	openDoor []*mix.Chunk
-	footstep []*mix.Chunk
-	swing    []*mix.Chunk
-	pickup   []*mix.Chunk
+	openDoor  []*mix.Chunk
+	closeDoor []*mix.Chunk
+	footstep  []*mix.Chunk
+	swing     []*mix.Chunk
+	pickup    []*mix.Chunk
 }
 
 type FontSize int
@@ -277,7 +285,7 @@ func (ui *ui) loadTextureIndex() {
 
 		var rects []sdl.Rect
 		for i := int64(0); i < variationCount; i++ {
-			rects = append(rects, sdl.Rect{X: int32(x * 32), Y: int32(y * 32), W: 32, H: 32})
+			rects = append(rects, sdl.Rect{X: int32(x) * tileSize, Y: int32(y) * tileSize, W: tileSize, H: tileSize})
 			x++
 			if x > 62 {
 				x = 0
@@ -354,12 +362,29 @@ func (ui *ui) LoadPlayer() {
 	ui.pHeightTex = imageHeight / ui.pFramesY
 }
 
+func (ui *ui) UpdatePlayer(input game.InputType) {
+	ui.pCurrentFrame++
+	if ui.pCurrentFrame >= ui.pFramesY {
+		ui.pCurrentFrame = 0
+	}
+	switch input {
+	case game.Up:
+		ui.pFromX = 2 * ui.pWidthTex
+	case game.Down:
+		ui.pFromX = 0
+	case game.Left:
+		ui.pFromX = ui.pWidthTex
+	case game.Right:
+		ui.pFromX = 3 * ui.pWidthTex
+	}
+}
+
 func (ui *ui) drawPlayer(level *game.Level) {
 	p := level.Player
 	ui.pFromY = ui.pCurrentFrame * ui.pWidthTex
 
 	ui.pSrc = sdl.Rect{X: ui.pFromX, Y: ui.pFromY, W: ui.pWidthTex, H: ui.pHeightTex}
-	ui.pDest = sdl.Rect{X: int32(p.X*32) + ui.offsetX - ((ui.pWidthTex - 32) / 2), Y: int32(p.Y*32) + ui.offsetY - ((ui.pHeightTex - 32) / 2), W: ui.pWidthTex, H: ui.pHeightTex}
+	ui.pDest = sdl.Rect{X: int32(p.X)*tileSize + ui.offsetX - ((ui.pWidthTex - tileSize) / 2), Y: int32(p.Y)*tileSize + ui.offsetY - ((ui.pHeightTex - tileSize) / 2), W: ui.pWidthTex, H: ui.pHeightTex}
 
 	err := ui.renderer.Copy(ui.pTexture, &ui.pSrc, &ui.pDest)
 	if err != nil {
@@ -518,24 +543,6 @@ func (ui *ui) drawEmptyInventory(level *game.Level) {
 	}
 }
 
-func (ui *ui) UpdatePlayer(input game.InputType) {
-	ui.pCurrentFrame++
-	if ui.pCurrentFrame >= ui.pFramesY {
-		ui.pCurrentFrame = 0
-	}
-	switch input {
-	case game.Up:
-		ui.pFromX = 2 * ui.pWidthTex
-	case game.Down:
-		ui.pFromX = 0
-	case game.Left:
-		ui.pFromX = ui.pWidthTex
-	case game.Right:
-		ui.pFromX = 3 * ui.pWidthTex
-	}
-
-}
-
 func (ui *ui) draw(level *game.Level) {
 	if ui.centerX == -1 && ui.centerY == -1 {
 		ui.centerX = level.Player.X
@@ -557,8 +564,8 @@ func (ui *ui) draw(level *game.Level) {
 		diff := (ui.centerY - limit) - level.Player.Y
 		ui.centerY -= diff
 	}
-	ui.offsetX = int32(ui.winWidth/2 - ui.centerX*32)
-	ui.offsetY = int32(ui.winHeight/2 - ui.centerY*32)
+	ui.offsetX = int32(ui.winWidth/2) - int32(ui.centerX)*tileSize
+	ui.offsetY = int32(ui.winHeight/2) - int32(ui.centerY)*tileSize
 
 	err := ui.renderer.Clear()
 	if err != nil {
@@ -571,7 +578,7 @@ func (ui *ui) draw(level *game.Level) {
 				srcRects := ui.textureIndex[tile.Rune]
 				srcRect := srcRects[ui.r.Intn(len(srcRects))]
 				if tile.Visible || tile.Seen {
-					dstRect := sdl.Rect{X: int32(x*32) + ui.offsetX, Y: int32(y*32) + ui.offsetY, W: 32, H: 32}
+					dstRect := sdl.Rect{X: int32(x)*tileSize + ui.offsetX, Y: int32(y)*tileSize + ui.offsetY, W: tileSize, H: tileSize}
 					pos := game.Pos{X: x, Y: y}
 					if level.Debug[pos] {
 						if err := ui.textureAtlas.SetColorMod(128, 0, 0); err != nil {
@@ -613,15 +620,23 @@ func (ui *ui) draw(level *game.Level) {
 		groundItems := level.Items[level.Player.Pos]
 		for i, item := range groundItems {
 			itemSrcRect := ui.textureIndex[item.Rune][0]
-			err := ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: int32(ui.winWidth - 32 - i*32), Y: 0, W: 32, H: 32})
+			err := ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: int32(ui.winWidth) - tileSize - int32(i)*tileSize, Y: 0, W: tileSize, H: tileSize})
 			if err != nil {
 				panic(err)
 			}
 		}
 		// drawing help letter T
-		if err := ui.renderer.Copy(ui.tileMap, &sdl.Rect{X: 358, Y: 34, W: 16, H: 16}, &sdl.Rect{X: int32(ui.winWidth - 32 - len(groundItems)*32), Y: 0, W: 32, H: 32}); err != nil {
+		if err := ui.renderer.Copy(ui.tileMap, &sdl.Rect{X: 358, Y: 34, W: 16, H: 16}, &sdl.Rect{X: int32(ui.winWidth) - tileSize - int32(len(groundItems))*tileSize, Y: 0, W: tileSize, H: tileSize}); err != nil {
 			panic(err)
 		}
+	}
+
+	if level.Map[level.FrontOf().Y][level.FrontOf().X].Actionable {
+		// drawing help letter E
+		if err := ui.renderer.Copy(ui.tileMap, &sdl.Rect{X: 324, Y: 34, W: 16, H: 16}, &sdl.Rect{X: int32(ui.winWidth) - tileSize - tileSize, Y: 0, W: tileSize, H: tileSize}); err != nil {
+			panic(err)
+		}
+
 	}
 	ui.renderer.Present()
 }
@@ -641,7 +656,7 @@ func (ui *ui) getSinglePixel(color sdl.Color) *sdl.Texture {
 }
 
 func (ui *ui) getGroundItemRect(i int) *sdl.Rect {
-	return &sdl.Rect{X: int32(ui.winWidth - 32 - i*32), Y: 0, W: 32, H: 32}
+	return &sdl.Rect{X: int32(ui.winWidth) - tileSize - int32(i)*tileSize, Y: 0, W: tileSize, H: tileSize}
 }
 
 func (ui *ui) getInventoryItemRect(id int, level *game.Level) *sdl.Rect {
@@ -663,6 +678,8 @@ func (ui *ui) getInventoryItemRect(id int, level *game.Level) *sdl.Rect {
 	return nil
 }
 
+// getEquippedItemRect based on arbitraries items positions, will return the corresponding
+// rectangle in order to compare with click position and then unequip
 func (ui *ui) getEquippedItemRect(item *game.Item) *sdl.Rect {
 	var locationX, locationY int32
 
@@ -690,6 +707,7 @@ func (ui *ui) getEquippedItemRect(item *game.Item) *sdl.Rect {
 	return &sdl.Rect{X: locationX, Y: locationY, W: ui.itemW, H: ui.itemH}
 }
 
+// pickupInventoryItem will check if clicked on an inventory item to equip
 func (ui *ui) pickupInventoryItem(level *game.Level, mouseX, mouseY int32) *game.Item {
 	for i, item := range level.Player.Items {
 		itemRect := ui.getInventoryItemRect(i, level)
@@ -707,6 +725,7 @@ func (ui *ui) pickupInventoryItem(level *game.Level, mouseX, mouseY int32) *game
 	return nil
 }
 
+// pickupGroundItem will check if clicked on a ground item, then take it
 func (ui *ui) pickupGroundItem(level *game.Level, mouseX, mouseY int32) *game.Item {
 	items := level.Items[level.Player.Pos]
 	for i, item := range items {
@@ -718,6 +737,7 @@ func (ui *ui) pickupGroundItem(level *game.Level, mouseX, mouseY int32) *game.It
 	return nil
 }
 
+// Run main UI loop
 func (ui *ui) Run() {
 	var newLevel *game.Level
 	var ok bool
@@ -732,6 +752,8 @@ func (ui *ui) Run() {
 					//TODO - improve animations
 				case game.DoorOpen:
 					playRandomSound(ui.sounds.openDoor, soundsVolume)
+				case game.DoorClose:
+					playRandomSound(ui.sounds.closeDoor, soundsVolume)
 				case game.Attack:
 					playRandomSound(ui.sounds.swing, soundsVolume)
 				case game.Pickup:
@@ -773,8 +795,6 @@ func (ui *ui) Run() {
 					}
 				}
 			case *sdl.KeyboardEvent:
-				// Seems not needed
-				//if sdl.GetKeyboardFocus() == ui.window || sdl.GetMouseFocus() == ui.window {
 				if e.State != sdl.PRESSED {
 					break
 				}
@@ -810,7 +830,6 @@ func (ui *ui) Run() {
 				if input.Typ != game.None {
 					ui.inputChan <- &input
 				}
-				//}
 			}
 		}
 		sdl.Delay(10)
