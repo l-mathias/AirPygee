@@ -23,6 +23,7 @@ const (
 	Action
 	TakeAll
 	TakeItem
+	Equip
 )
 
 type Game struct {
@@ -93,6 +94,7 @@ type Character struct {
 	Speed         float64
 	ActionPoints  float64
 	SightRange    int
+	EquippedItems []*Item
 	Items         []*Item
 	InventorySize int
 }
@@ -340,6 +342,37 @@ func (game *Game) resolveMovement(pos Pos) {
 	}
 }
 
+func (game *Game) unEquip(itemToUnEquip *Item) {
+	itemToUnEquip.Equipped = false
+	game.CurrentLevel.Player.Items = append(game.CurrentLevel.Player.Items, itemToUnEquip)
+	for i, item := range game.CurrentLevel.Player.EquippedItems {
+		if item == itemToUnEquip {
+			game.CurrentLevel.Player.EquippedItems = append(game.CurrentLevel.Player.EquippedItems[:i], game.CurrentLevel.Player.EquippedItems[i+1:]...)
+		}
+	}
+}
+
+func (game *Game) slotFreeToEquip(itemToCheck *Item) bool {
+	for _, item := range game.CurrentLevel.Player.EquippedItems {
+		if item.Location == itemToCheck.Location {
+			return false
+		}
+	}
+	return true
+}
+
+func (game *Game) equip(itemToEquip *Item) {
+	if game.slotFreeToEquip(itemToEquip) {
+		itemToEquip.Equipped = true
+		game.CurrentLevel.Player.EquippedItems = append(game.CurrentLevel.Player.EquippedItems, itemToEquip)
+		for i, item := range game.CurrentLevel.Player.Items {
+			if item == itemToEquip {
+				game.CurrentLevel.Player.Items = append(game.CurrentLevel.Player.Items[:i], game.CurrentLevel.Player.Items[i+1:]...)
+			}
+		}
+	}
+}
+
 func (game *Game) handleInput(input *Input) {
 	p := game.CurrentLevel.Player
 	switch input.Typ {
@@ -361,6 +394,12 @@ func (game *Game) handleInput(input *Input) {
 		game.pickup(game.CurrentLevel.Player.Pos, nil)
 	case TakeItem:
 		game.pickup(game.CurrentLevel.Player.Pos, input.Item)
+	case Equip:
+		if input.Item.Equipped {
+			game.unEquip(input.Item)
+		} else {
+			game.equip(input.Item)
+		}
 	case CloseWindow:
 		close(input.LevelChannel)
 		chanIndex := 0

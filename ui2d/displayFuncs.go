@@ -50,7 +50,7 @@ func (ui *ui) displayStats(level *game.Level) {
 }
 
 func (ui *ui) displayMonsters(level *game.Level) {
-	// Display Monsters
+	// Display Monsters on Map
 	if err := ui.textureAtlas.SetColorMod(255, 255, 255); err != nil {
 		panic(err)
 	}
@@ -77,7 +77,7 @@ func (ui *ui) displayMonsters(level *game.Level) {
 }
 
 func (ui *ui) displayItems(level *game.Level) {
-	// Display Items
+	// Display Items on Map
 	for pos, items := range level.Items {
 		if level.Map[pos.Y][pos.X].Visible {
 			for _, item := range items {
@@ -123,7 +123,7 @@ func (ui *ui) displayEvents(level *game.Level) {
 		}
 	}
 
-	// draw inventory
+	// draw inventory bar in the bottom
 	inventoryStart := int32(float64(ui.winWidth) * 0.7)
 	inventoryWidth := int32(ui.winWidth) - inventoryStart
 

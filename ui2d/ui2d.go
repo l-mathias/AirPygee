@@ -37,6 +37,7 @@ type uiState int
 const (
 	UIMain uiState = iota
 	UIInventory
+	itemSizeRatio float64 = 0.15
 )
 
 type ui struct {
@@ -59,14 +60,16 @@ type ui struct {
 	uipack       *sdl.Texture
 	texturesList SubTextures
 
-	textureIndex                              map[rune][]sdl.Rect
-	centerX, centerY                          int
-	r                                         *rand.Rand
-	levelChan                                 chan *game.Level
-	inputChan                                 chan *game.Input
-	offsetX, offsetY                          int32
-	fontSmall, fontMedium, fontLarge          *ttf.Font
-	str2TexSmall, str2TexMedium, str2TexLarge map[string]*sdl.Texture
+	textureIndex                                                                                                                   map[rune][]sdl.Rect
+	centerX, centerY                                                                                                               int
+	r                                                                                                                              *rand.Rand
+	levelChan                                                                                                                      chan *game.Level
+	inputChan                                                                                                                      chan *game.Input
+	offsetX, offsetY                                                                                                               int32
+	invOffsetX, invOffsetY, invWidth, invHeight, itemW, itemH                                                                      int32
+	invHeadX, invHeadY, invLHandX, invLHandY, invRHandX, invRHandY, invLegsX, invLegsY, invChestX, invChestY, invFootsX, invFootsY int32
+	fontSmall, fontMedium, fontLarge                                                                                               *ttf.Font
+	str2TexSmall, str2TexMedium, str2TexLarge                                                                                      map[string]*sdl.Texture
 }
 
 func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
@@ -118,6 +121,31 @@ func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 	}
 
 	ui.loadSounds()
+
+	ui.invWidth = int32(float64(ui.winWidth) * 0.40)
+	ui.invHeight = int32(float64(ui.winHeight) * 0.75)
+	ui.invOffsetX = (int32(ui.winWidth) - ui.invWidth) / 2
+	ui.invOffsetY = (int32(ui.winHeight) - ui.invHeight) / 2
+	ui.itemW = int32(float64(ui.invWidth) * itemSizeRatio)
+	ui.itemH = int32(float64(ui.invHeight) * itemSizeRatio)
+
+	ui.invHeadX = ui.invOffsetX + ui.invWidth/2 - (ui.itemW / 2)
+	ui.invHeadY = ui.invOffsetY + ui.itemH
+
+	ui.invRHandX = ui.invOffsetX + ui.itemW
+	ui.invRHandY = ui.invOffsetY + ui.itemH*4
+
+	ui.invLHandX = ui.invOffsetX + ui.invWidth - ui.itemW*2
+	ui.invLHandY = ui.invOffsetY + ui.itemH*4
+
+	ui.invFootsX = ui.invOffsetX + ui.invWidth/2 - ui.itemW
+	ui.invFootsY = ui.invOffsetY + ui.invHeight - ui.itemH*2
+
+	ui.invChestX = ui.invOffsetX + ui.itemW
+	ui.invChestY = ui.invOffsetY + ui.itemH*3
+
+	ui.invLegsX = ui.invOffsetX + ui.invWidth/2
+	ui.invLegsY = ui.invOffsetY + ui.invHeight - ui.itemH*2
 
 	return ui
 }
@@ -373,118 +401,117 @@ func (ui *ui) getRectFromTextureName(name string) *sdl.Rect {
 			y, _ := strconv.Atoi(ui.texturesList.SubTexture[i].Y)
 			w, _ := strconv.Atoi(ui.texturesList.SubTexture[i].Width)
 			h, _ := strconv.Atoi(ui.texturesList.SubTexture[i].Height)
-			return &sdl.Rect{
-				X: int32(x),
-				Y: int32(y),
-				W: int32(w),
-				H: int32(h),
-			}
+			return &sdl.Rect{X: int32(x), Y: int32(y), W: int32(w), H: int32(h)}
 		}
 	}
 	return &sdl.Rect{}
 }
 
 func (ui *ui) drawInventory(level *game.Level) {
-	invWidth := int32(float64(ui.winWidth) * 0.40)
-	invHeight := int32(float64(ui.winHeight) * 0.75)
-	offsetX := (int32(ui.winWidth) - invWidth) / 2
-	offsetY := (int32(ui.winHeight) - invHeight) / 2
-	var locationX, locationY, itemW, itemH int32
-	itemW = int32(float64(invWidth) * .15)
-	itemH = int32(float64(invHeight) * .15)
+	var locationX, locationY int32
 
 	playerSrcRect := sdl.Rect{X: 0, Y: 0, W: 48, H: 48}
-	playerX := ((invWidth - (invWidth / 2)) / 2) + offsetX
-	playerY := ((invHeight - (invHeight / 2)) / 2) + offsetY
+	playerX := ((ui.invWidth - (ui.invWidth / 2)) / 2) + ui.invOffsetX
+	playerY := ((ui.invHeight - (ui.invHeight / 2)) / 2) + ui.invOffsetY
 
-	if err := ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("panel_beige.png"), &sdl.Rect{X: offsetX, Y: offsetY, W: invWidth, H: invHeight}); err != nil {
+	if err := ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("panel_beige.png"), &sdl.Rect{X: ui.invOffsetX, Y: ui.invOffsetY, W: ui.invWidth, H: ui.invHeight}); err != nil {
 		panic(err)
 	}
 
-	if err := ui.renderer.Copy(ui.pTexture, &playerSrcRect, &sdl.Rect{X: playerX, Y: playerY, W: invWidth / 2, H: invHeight / 2}); err != nil {
+	if err := ui.renderer.Copy(ui.pTexture, &playerSrcRect, &sdl.Rect{X: playerX, Y: playerY, W: ui.invWidth / 2, H: ui.invHeight / 2}); err != nil {
 		panic(err)
 	}
 
-	ui.drawEmptyInventory(invWidth, itemW, itemH, offsetX, offsetY, level)
+	ui.drawEmptyInventory(level)
 
 	// draw panel items
 	//Head
-	if err := ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("buttonSquare_blue_pressed.png"), &sdl.Rect{X: offsetX + invWidth/2 - (itemW / 2), Y: offsetY + itemH, W: itemW, H: itemH}); err != nil {
+	if err := ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("buttonSquare_blue_pressed.png"), &sdl.Rect{X: ui.invHeadX, Y: ui.invHeadY, W: ui.itemW, H: ui.itemH}); err != nil {
 		panic(err)
 	}
 	//RightHand
-	if err := ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("buttonSquare_blue_pressed.png"), &sdl.Rect{X: offsetX + itemW, Y: offsetY + itemH*4, W: itemW, H: itemH}); err != nil {
+	if err := ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("buttonSquare_blue_pressed.png"), &sdl.Rect{X: ui.invRHandX, Y: ui.invRHandY, W: ui.itemW, H: ui.itemH}); err != nil {
 		panic(err)
 	}
 	//LeftHand
-	if err := ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("buttonSquare_blue_pressed.png"), &sdl.Rect{X: offsetX + invWidth - itemW*2, Y: offsetY + itemH*4, W: itemW, H: itemH}); err != nil {
+	if err := ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("buttonSquare_blue_pressed.png"), &sdl.Rect{X: ui.invLHandX, Y: ui.invLHandY, W: ui.itemW, H: ui.itemH}); err != nil {
 		panic(err)
 	}
 	//Foots
-	if err := ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("buttonSquare_blue_pressed.png"), &sdl.Rect{X: offsetX + invWidth/2 - (itemW / 2), Y: offsetY + invHeight - itemH*2, W: itemW, H: itemH}); err != nil {
+	if err := ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("buttonSquare_blue_pressed.png"), &sdl.Rect{X: ui.invFootsX, Y: ui.invFootsY, W: ui.itemW, H: ui.itemH}); err != nil {
 		panic(err)
 	}
 	//Chest
-	if err := ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("buttonSquare_blue_pressed.png"), &sdl.Rect{X: offsetX + itemW, Y: offsetY + itemH*3, W: itemW, H: itemH}); err != nil {
+	if err := ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("buttonSquare_blue_pressed.png"), &sdl.Rect{X: ui.invChestX, Y: ui.invChestY, W: ui.itemW, H: ui.itemH}); err != nil {
 		panic(err)
+	}
+	//Legs
+	if err := ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("buttonSquare_blue_pressed.png"), &sdl.Rect{X: ui.invLegsX, Y: ui.invLegsY, W: ui.itemW, H: ui.itemH}); err != nil {
+		panic(err)
+	}
+
+	for i, item := range level.Player.EquippedItems {
+		itemSrcRect := ui.textureIndex[item.Rune][0]
+
+		switch item.Location {
+		case game.Head:
+			locationX = ui.invHeadX
+			locationY = ui.invHeadY
+		case game.RightHand:
+			locationX = ui.invRHandX
+			locationY = ui.invRHandY
+		case game.LeftHand:
+			locationX = ui.invLHandX
+			locationY = ui.invLHandY
+		case game.Foots:
+			locationX = ui.invFootsX
+			locationY = ui.invFootsY
+		case game.Chest:
+			locationX = ui.invChestX
+			locationY = ui.invChestY
+		case game.Legs:
+			locationX = ui.invLegsX
+			locationY = ui.invLegsY
+		default:
+			locationX = ui.invOffsetX + int32(i)*ui.itemW
+			locationY = ui.invOffsetY + ui.invHeight - ui.itemH
+		}
+
+		if err := ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: locationX, Y: locationY, W: ui.itemW, H: ui.itemH}); err != nil {
+			panic(err)
+		}
 	}
 
 	var countX int32 = 0
 	var countY int32 = 0
-	for i, item := range level.Player.Items {
+	for _, item := range level.Player.Items {
 		itemSrcRect := ui.textureIndex[item.Rune][0]
-		if item.Equipped {
-			switch item.Location {
-			case game.Head:
-				locationX = offsetX + invWidth/2 - (itemW / 2)
-				locationY = offsetY + itemH
-			case game.RightHand:
-				locationX = offsetX + itemW
-				locationY = offsetY + itemH*4
-			case game.LeftHand:
-				locationX = offsetX + invWidth - itemW*2
-				locationY = offsetY + itemH*4
-			case game.Foots:
-				locationX = offsetX + invWidth/2 - (itemW / 2)
-				locationY = offsetY + invHeight - itemH*2
-			case game.Chest:
-				locationX = offsetX + itemW
-				locationY = offsetY + itemH*3
-			default:
-				locationX = offsetX + int32(i)*itemW
-				locationY = offsetY + invHeight - itemH
-			}
-
-			if err := ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: locationX, Y: locationY, W: itemW, H: itemH}); err != nil {
-				panic(err)
-			}
-		} else {
-			if countX%5 == 0 {
-				countX = 0
-				countY++
-			}
-			locationX = offsetX + invWidth + itemW*countX
-			locationY = offsetY + itemH*countY
-
-			if err := ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: locationX, Y: locationY, W: itemW, H: itemH}); err != nil {
-				panic(err)
-			}
-			countX++
+		if countX%5 == 0 {
+			countX = 0
+			countY++
 		}
+		locationX = ui.invOffsetX + ui.invWidth + ui.itemW*countX
+		locationY = ui.invOffsetY + ui.itemH*countY
+
+		if err := ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: locationX, Y: locationY, W: ui.itemW, H: ui.itemH}); err != nil {
+			panic(err)
+		}
+		countX++
 	}
+
 	ui.renderer.Present()
 }
 
-func (ui *ui) drawEmptyInventory(invWidth, itemW, itemH, offsetX, offsetY int32, level *game.Level) {
+func (ui *ui) drawEmptyInventory(level *game.Level) {
 	var countX, countY, locationX, locationY int32
 	for i := 0; i < level.Player.InventorySize; i++ {
 		if i%5 == 0 {
 			countX = 0
 			countY++
 		}
-		locationX = offsetX + invWidth + itemW*countX
-		locationY = offsetY + itemH*countY
-		if err := ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("buttonSquare_brown_pressed.png"), &sdl.Rect{X: locationX, Y: locationY, W: itemW, H: itemH}); err != nil {
+		locationX = ui.invOffsetX + ui.invWidth + ui.itemW*countX
+		locationY = ui.invOffsetY + ui.itemH*countY
+		if err := ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("buttonSquare_brown_pressed.png"), &sdl.Rect{X: locationX, Y: locationY, W: ui.itemW, H: ui.itemH}); err != nil {
 			panic(err)
 		}
 		countX++
@@ -617,7 +644,70 @@ func (ui *ui) getGroundItemRect(i int) *sdl.Rect {
 	return &sdl.Rect{X: int32(ui.winWidth - 32 - i*32), Y: 0, W: 32, H: 32}
 }
 
-func (ui *ui) pickupItem(level *game.Level, mouseX, mouseY int32) *game.Item {
+func (ui *ui) getInventoryItemRect(id int, level *game.Level) *sdl.Rect {
+	var locationX, locationY, countX, countY int32
+
+	for i := 0; i < level.Player.InventorySize; i++ {
+		if i%5 == 0 {
+			countX = 0
+			countY++
+		}
+		locationX = ui.invOffsetX + ui.invWidth + ui.itemW*countX
+		locationY = ui.invOffsetY + ui.itemH*countY
+
+		countX++
+		if i == id {
+			return &sdl.Rect{X: locationX, Y: locationY, W: ui.itemW, H: ui.itemH}
+		}
+	}
+	return nil
+}
+
+func (ui *ui) getEquippedItemRect(item *game.Item) *sdl.Rect {
+	var locationX, locationY int32
+
+	switch item.Location {
+	case game.Head:
+		locationX = ui.invHeadX
+		locationY = ui.invHeadY
+	case game.Foots:
+		locationX = ui.invFootsX
+		locationY = ui.invFootsY
+	case game.LeftHand:
+		locationX = ui.invLHandX
+		locationY = ui.invLHandY
+	case game.RightHand:
+		locationX = ui.invRHandX
+		locationY = ui.invRHandY
+	case game.Chest:
+		locationX = ui.invChestX
+		locationY = ui.invChestY
+	case game.Legs:
+		locationX = ui.invLegsX
+		locationY = ui.invLegsY
+	}
+
+	return &sdl.Rect{X: locationX, Y: locationY, W: ui.itemW, H: ui.itemH}
+}
+
+func (ui *ui) pickupInventoryItem(level *game.Level, mouseX, mouseY int32) *game.Item {
+	for i, item := range level.Player.Items {
+		itemRect := ui.getInventoryItemRect(i, level)
+		if itemRect.HasIntersection(&sdl.Rect{X: mouseX, Y: mouseY, W: 1, H: 1}) {
+			return item
+		}
+	}
+
+	for _, item := range level.Player.EquippedItems {
+		itemRect := ui.getEquippedItemRect(item)
+		if itemRect.HasIntersection(&sdl.Rect{X: mouseX, Y: mouseY, W: 1, H: 1}) {
+			return item
+		}
+	}
+	return nil
+}
+
+func (ui *ui) pickupGroundItem(level *game.Level, mouseX, mouseY int32) *game.Item {
 	items := level.Items[level.Player.Pos]
 	for i, item := range items {
 		itemRect := ui.getGroundItemRect(i)
@@ -669,9 +759,17 @@ func (ui *ui) Run() {
 				}
 			case *sdl.MouseButtonEvent:
 				if e.State == sdl.PRESSED && e.Button == sdl.BUTTON_LEFT {
-					item := ui.pickupItem(newLevel, e.X, e.Y)
-					if item != nil {
-						ui.inputChan <- &game.Input{Typ: game.TakeItem, Item: item}
+					if ui.state == UIMain {
+						item := ui.pickupGroundItem(newLevel, e.X, e.Y)
+						if item != nil {
+							ui.inputChan <- &game.Input{Typ: game.TakeItem, Item: item}
+						}
+					} else {
+						item := ui.pickupInventoryItem(newLevel, e.X, e.Y)
+						if item != nil {
+							ui.inputChan <- &game.Input{Typ: game.Equip, Item: item}
+							ui.drawInventory(newLevel)
+						}
 					}
 				}
 			case *sdl.KeyboardEvent:
