@@ -41,6 +41,33 @@ const (
 	tileSize      int32   = 32
 )
 
+type dragMode int
+
+const (
+	none dragMode = iota
+	fromInventory
+	fromEquippedItems
+)
+
+type mouseState struct {
+	leftButton  bool
+	rightButton bool
+	pos         game.Pos
+	xrel, yrel  int32
+}
+
+func getMouseState() *mouseState {
+	mouseX, mouseY, mouseButtonState := sdl.GetMouseState()
+	leftButton := mouseButtonState & sdl.ButtonLMask()
+	rightButton := mouseButtonState & sdl.ButtonRMask()
+	var result mouseState
+	result.pos = game.Pos{int(mouseX), int(mouseY)}
+	result.leftButton = !(leftButton == 0)
+	result.rightButton = !(rightButton == 0)
+
+	return &result
+}
+
 type ui struct {
 	state               uiState
 	sounds              sounds
@@ -72,6 +99,11 @@ type ui struct {
 	invOffsetX, invOffsetY, invWidth, invHeight, itemW, itemH      int32
 	invHeadX, invHeadY, invLHandX, invLHandY, invRHandX, invRHandY int32
 	invLegsX, invLegsY, invChestX, invChestY, invFootsX, invFootsY int32
+	// drag&drop
+	draggedItem       *game.Item
+	dragMode          dragMode
+	currentMouseState *mouseState
+	prevMouseState    *mouseState
 
 	// Fonts
 	fontSmall, fontMedium, fontLarge          *ttf.Font
@@ -152,6 +184,20 @@ func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 
 	ui.invLegsX = ui.invOffsetX + ui.invWidth/2
 	ui.invLegsY = ui.invOffsetY + ui.invHeight - ui.itemH*2
+
+	ui.currentMouseState = &mouseState{
+		leftButton:  false,
+		rightButton: false,
+		pos:         game.Pos{},
+	}
+
+	ui.prevMouseState = &mouseState{
+		leftButton:  false,
+		rightButton: false,
+		pos:         game.Pos{},
+	}
+
+	ui.dragMode = none
 
 	return ui
 }
@@ -502,8 +548,14 @@ func (ui *ui) drawInventory(level *game.Level) {
 			locationY = ui.invOffsetY + ui.invHeight - ui.itemH
 		}
 
-		if err := ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: locationX, Y: locationY, W: ui.itemW, H: ui.itemH}); err != nil {
-			panic(err)
+		if item == ui.draggedItem {
+			if err := ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: int32(ui.currentMouseState.pos.X) - ui.itemW/2, Y: int32(ui.currentMouseState.pos.Y) - ui.itemH/2, W: ui.itemW, H: ui.itemH}); err != nil {
+				panic(err)
+			}
+		} else {
+			if err := ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: locationX, Y: locationY, W: ui.itemW, H: ui.itemH}); err != nil {
+				panic(err)
+			}
 		}
 	}
 
@@ -518,13 +570,17 @@ func (ui *ui) drawInventory(level *game.Level) {
 		locationX = ui.invOffsetX + ui.invWidth + ui.itemW*countX
 		locationY = ui.invOffsetY + ui.itemH*countY
 
-		if err := ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: locationX, Y: locationY, W: ui.itemW, H: ui.itemH}); err != nil {
-			panic(err)
+		if item == ui.draggedItem {
+			if err := ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: int32(ui.currentMouseState.pos.X) - ui.itemW/2, Y: int32(ui.currentMouseState.pos.Y) - ui.itemH/2, W: ui.itemW, H: ui.itemH}); err != nil {
+				panic(err)
+			}
+		} else {
+			if err := ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: locationX, Y: locationY, W: ui.itemW, H: ui.itemH}); err != nil {
+				panic(err)
+			}
 		}
 		countX++
 	}
-
-	ui.renderer.Present()
 }
 
 func (ui *ui) drawEmptyInventory(level *game.Level) {
@@ -638,7 +694,7 @@ func (ui *ui) draw(level *game.Level) {
 		}
 
 	}
-	ui.renderer.Present()
+	//ui.renderer.Present()
 }
 
 func (ui *ui) getSinglePixel(color sdl.Color) *sdl.Texture {
@@ -707,11 +763,11 @@ func (ui *ui) getEquippedItemRect(item *game.Item) *sdl.Rect {
 	return &sdl.Rect{X: locationX, Y: locationY, W: ui.itemW, H: ui.itemH}
 }
 
-// pickupInventoryItem will check if clicked on an inventory item to equip
-func (ui *ui) pickupInventoryItem(level *game.Level, mouseX, mouseY int32) *game.Item {
+func (ui *ui) clickValidItem(level *game.Level, mouseX, mouseY int32) *game.Item {
 	for i, item := range level.Player.Items {
 		itemRect := ui.getInventoryItemRect(i, level)
 		if itemRect.HasIntersection(&sdl.Rect{X: mouseX, Y: mouseY, W: 1, H: 1}) {
+			ui.dragMode = fromInventory
 			return item
 		}
 	}
@@ -719,10 +775,52 @@ func (ui *ui) pickupInventoryItem(level *game.Level, mouseX, mouseY int32) *game
 	for _, item := range level.Player.EquippedItems {
 		itemRect := ui.getEquippedItemRect(item)
 		if itemRect.HasIntersection(&sdl.Rect{X: mouseX, Y: mouseY, W: 1, H: 1}) {
+			ui.dragMode = fromEquippedItems
 			return item
 		}
 	}
+
 	return nil
+}
+
+func (ui *ui) isSlotFree(level *game.Level, itemToEquip *game.Item) bool {
+	for _, item := range level.Player.EquippedItems {
+		if itemToEquip.Location == item.Location {
+			return false
+		}
+	}
+	return true
+}
+
+func (ui *ui) hasClickedOnValidEquipSlot(mouseX, mouseY int32, item *game.Item) bool {
+	itemRect := ui.getEquippedItemRect(item)
+	if itemRect.HasIntersection(&sdl.Rect{X: mouseX, Y: mouseY, W: 1, H: 1}) {
+		return true
+	} else {
+		return false
+	}
+}
+
+func (ui *ui) hasClickedInBackpackZone(mouseX, mouseY int32) bool {
+	itemRect := &sdl.Rect{X: ui.invOffsetX + ui.invWidth, Y: ui.invOffsetY + ui.itemH, W: ui.itemW * 5, H: ui.itemH * 4}
+	if itemRect.HasIntersection(&sdl.Rect{X: mouseX, Y: mouseY, W: 1, H: 1}) {
+		return true
+	} else {
+		return false
+	}
+}
+
+func (ui *ui) hasClickedInEquipZone(mouseX, mouseY int32) bool {
+	itemRect := &sdl.Rect{X: ui.invOffsetX, Y: ui.invOffsetY, W: ui.invWidth, H: ui.invHeight}
+	if itemRect.HasIntersection(&sdl.Rect{X: mouseX, Y: mouseY, W: 1, H: 1}) {
+		return true
+	} else {
+		return false
+	}
+}
+
+func (ui *ui) hasClickedOutsideInventoryZone(mouseX, mouseY int32) bool {
+	return !ui.hasClickedInBackpackZone(mouseX, mouseY) && !ui.hasClickedInEquipZone(mouseX, mouseY)
 }
 
 // pickupGroundItem will check if clicked on a ground item, then take it
@@ -741,7 +839,10 @@ func (ui *ui) pickupGroundItem(level *game.Level, mouseX, mouseY int32) *game.It
 func (ui *ui) Run() {
 	var newLevel *game.Level
 	var ok bool
+	ui.prevMouseState = getMouseState()
+
 	for {
+		ui.currentMouseState = getMouseState()
 		input := game.Input{}
 		select {
 		case newLevel, ok = <-ui.levelChan:
@@ -779,17 +880,47 @@ func (ui *ui) Run() {
 				if e.Event == sdl.WINDOWEVENT_CLOSE {
 					ui.inputChan <- &game.Input{Typ: game.CloseWindow, LevelChannel: ui.levelChan}
 				}
+			case *sdl.MouseMotionEvent:
+				if ui.draggedItem != nil && ui.state == UIInventory {
+					ui.draw(newLevel)
+					ui.drawInventory(newLevel)
+				}
 			case *sdl.MouseButtonEvent:
 				if e.State == sdl.PRESSED && e.Button == sdl.BUTTON_LEFT {
+					if ui.state == UIInventory && ui.draggedItem == nil {
+						ui.draggedItem = ui.clickValidItem(newLevel, e.X, e.Y)
+						if ui.draggedItem == nil {
+							ui.draggedItem = ui.clickValidItem(newLevel, e.X, e.Y)
+						}
+						ui.draw(newLevel)
+						ui.drawInventory(newLevel)
+					}
+				}
+				if e.State == sdl.RELEASED && e.Button == sdl.BUTTON_LEFT {
 					if ui.state == UIMain {
 						item := ui.pickupGroundItem(newLevel, e.X, e.Y)
 						if item != nil {
 							ui.inputChan <- &game.Input{Typ: game.TakeItem, Item: item}
 						}
 					} else {
-						item := ui.pickupInventoryItem(newLevel, e.X, e.Y)
-						if item != nil {
-							ui.inputChan <- &game.Input{Typ: game.Equip, Item: item}
+						if ui.draggedItem != nil && ui.dragMode != none {
+							var item *game.Item
+							if ui.dragMode == fromInventory {
+								if ui.hasClickedOnValidEquipSlot(e.X, e.Y, ui.draggedItem) && ui.isSlotFree(newLevel, ui.draggedItem) {
+									item = ui.draggedItem
+								} else if ui.hasClickedOutsideInventoryZone(e.X, e.Y) {
+									ui.inputChan <- &game.Input{Typ: game.Drop, Item: ui.draggedItem}
+								}
+							} else if ui.hasClickedInBackpackZone(e.X, e.Y) {
+								item = ui.draggedItem
+							}
+
+							if item != nil {
+								ui.inputChan <- &game.Input{Typ: game.Equip, Item: ui.draggedItem}
+							}
+							ui.draggedItem = nil
+							ui.dragMode = none
+							ui.draw(newLevel)
 							ui.drawInventory(newLevel)
 						}
 					}
@@ -832,6 +963,8 @@ func (ui *ui) Run() {
 				}
 			}
 		}
-		sdl.Delay(10)
+		ui.renderer.Present()
+		ui.prevMouseState = ui.currentMouseState
+		sdl.Delay(1)
 	}
 }

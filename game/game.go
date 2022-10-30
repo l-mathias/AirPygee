@@ -24,6 +24,7 @@ const (
 	TakeAll
 	TakeItem
 	Equip
+	Drop
 )
 
 type Game struct {
@@ -114,6 +115,7 @@ const (
 	Hit
 	Portal
 	Pickup
+	Dropped
 )
 
 type Level struct {
@@ -290,11 +292,12 @@ func canSeeTrough(level *Level, pos Pos) bool {
 	return false
 }
 
-func (game *Game) pickup(pos Pos, item *Item) {
+// pickup if nil, we'll take all the objects on the ground
+func (game *Game) pickup(item *Item) {
 	if item != nil {
 		game.CurrentLevel.MoveItem(item, &game.CurrentLevel.Player.Character)
 	} else {
-		for _, item := range game.CurrentLevel.Items[pos] {
+		for _, item := range game.CurrentLevel.Items[game.CurrentLevel.Player.Pos] {
 			game.CurrentLevel.MoveItem(item, &game.CurrentLevel.Player.Character)
 		}
 	}
@@ -414,6 +417,21 @@ func (level *Level) FrontOf() Pos {
 	}
 }
 
+func (game *Game) dropItem(itemToDrop *Item) {
+	player := game.CurrentLevel.Player
+
+	for i, item := range game.CurrentLevel.Player.Items {
+		if item == itemToDrop {
+			game.CurrentLevel.Player.Items = append(game.CurrentLevel.Player.Items[:i], game.CurrentLevel.Player.Items[i+1:]...)
+			game.CurrentLevel.Items[player.Pos] = append(game.CurrentLevel.Items[player.Pos], itemToDrop)
+			game.CurrentLevel.AddEvent(player.Name + " dropped " + itemToDrop.Name)
+			game.CurrentLevel.LastEvent = Dropped
+			return
+		}
+	}
+	panic("Tried to drop bad item")
+}
+
 func (game *Game) handleInput(input *Input) {
 	p := game.CurrentLevel.Player
 	switch input.Typ {
@@ -430,18 +448,19 @@ func (game *Game) handleInput(input *Input) {
 		newPos := Pos{p.X + 1, p.Y}
 		game.resolveMovement(newPos)
 	case Action:
-		//fmt.Println(game.CurrentLevel.Map[game.frontOf().Y][game.frontOf().X].OverlayRune)
 		game.action(game.CurrentLevel.FrontOf())
 	case TakeAll:
-		game.pickup(game.CurrentLevel.Player.Pos, nil)
+		game.pickup(nil)
 	case TakeItem:
-		game.pickup(game.CurrentLevel.Player.Pos, input.Item)
+		game.pickup(input.Item)
 	case Equip:
 		if input.Item.Equipped {
 			game.unEquip(input.Item)
 		} else {
 			game.equip(input.Item)
 		}
+	case Drop:
+		game.dropItem(input.Item)
 	case CloseWindow:
 		close(input.LevelChannel)
 		chanIndex := 0
