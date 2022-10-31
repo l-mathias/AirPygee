@@ -649,8 +649,11 @@ func (ui *ui) Run() {
 				if e.State == sdl.PRESSED && e.Button == sdl.BUTTON_RIGHT {
 					if ui.state == UIInventory {
 						item := ui.clickValidItem(newLevel, e.X, e.Y)
-						if item.Type == game.Potion {
-							ui.inputChan <- &game.Input{Typ: game.Action, Item: item}
+						if item != nil {
+							switch item.Type {
+							case game.Potion:
+								ui.inputChan <- &game.Input{Typ: game.Action, Item: item}
+							}
 						}
 					}
 				}

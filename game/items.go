@@ -25,7 +25,7 @@ type Item struct {
 	Location
 	Type     ItemType
 	Equipped bool
-	Size     rune
+	Size     string
 }
 
 func NewSword(p Pos) *Item {
@@ -49,19 +49,21 @@ func NewHealthPotion(p Pos) *Item {
 		Pos:  p,
 		Name: "Potion",
 		Rune: 'p',
-	}, Location: NoLoc, Equipped: false, Type: Potion, Size: 's'}
+	}, Location: NoLoc, Equipped: false, Type: Potion, Size: "Small"}
 }
 
 func (game *Game) consumePotion(item *Item) {
 	switch item.Size {
-	case 's':
-		game.CurrentLevel.Player.Hitpoints += int(float64(game.CurrentLevel.Player.MaxHitpoints) * .25)
-		game.removeInventoryItem(item, &game.CurrentLevel.Player.Character)
-		game.CurrentLevel.AddEvent(game.CurrentLevel.Player.Character.Name + " consumed " + string(item.Size) + " " + item.Name)
-		game.CurrentLevel.LastEvent = ConsumePotion
-	case 'm':
-	case 'l':
+	case "Small":
+		game.heal(int(float64(game.CurrentLevel.Player.MaxHitpoints) * .25))
+	case "Medium":
+		game.heal(int(float64(game.CurrentLevel.Player.MaxHitpoints) * .50))
+	case "Large":
+		game.heal(int(float64(game.CurrentLevel.Player.MaxHitpoints) * .75))
 	}
+	game.removeInventoryItem(item, &game.CurrentLevel.Player.Character)
+	game.CurrentLevel.AddEvent(game.CurrentLevel.Player.Character.Name + " consumed " + item.Size + item.Name)
+	game.CurrentLevel.LastEvent = ConsumePotion
 }
 
 func (game *Game) equip(itemToEquip *Item) {
