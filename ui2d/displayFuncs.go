@@ -83,7 +83,19 @@ func (ui *ui) displayItems(level *game.Level) {
 		if level.Map[pos.Y][pos.X].Visible {
 			for _, item := range items {
 				itemSrcRect := ui.textureIndex[item.Rune][0]
-				err := ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: int32(pos.X)*tileSize + ui.offsetX, Y: int32(pos.Y)*tileSize + ui.offsetY, W: tileSize, H: tileSize})
+				var size int32
+				size = tileSize
+				if item.Name == "Potion" {
+					switch item.Size {
+					case "Small":
+						size = int32(float64(size) * .50)
+					case "Medium":
+						size = int32(float64(size) * .75)
+					case "Large":
+						size = int32(float64(size) * .95)
+					}
+				}
+				err := ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: int32(pos.X)*tileSize + ui.offsetX, Y: int32(pos.Y)*tileSize + ui.offsetY, W: size, H: size})
 				if err != nil {
 					panic(err)
 				}

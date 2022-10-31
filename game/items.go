@@ -44,12 +44,12 @@ func NewHelmet(p Pos) *Item {
 	}, Location: Head, Equipped: false, Type: Armors}
 }
 
-func NewHealthPotion(p Pos) *Item {
+func NewHealthPotion(p Pos, size string) *Item {
 	return &Item{Entity: Entity{
 		Pos:  p,
 		Name: "Potion",
 		Rune: 'p',
-	}, Location: NoLoc, Equipped: false, Type: Potion, Size: "Small"}
+	}, Location: NoLoc, Equipped: false, Type: Potion, Size: size}
 }
 
 func (game *Game) consumePotion(item *Item) {

@@ -137,18 +137,16 @@ func (c *Character) Pass() {
 
 func (level *Level) MoveItem(itemToMove *Item, character *Character) {
 	pos := character.Pos
-	items := level.Items[pos]
-	for i, item := range items {
+	for i, item := range level.Items[pos] {
 		if item == itemToMove {
-			items = append(items[:i], items[i+1:]...)
-			level.Items[pos] = items
+			level.Items[pos] = append(level.Items[pos][:i], level.Items[pos][i+1:]...)
 			character.Items = append(character.Items, item)
-			level.AddEvent(character.Name + " picked up " + itemToMove.Name)
+			level.AddEvent(character.Name + " picked up:" + item.Name)
 			level.LastEvent = Pickup
 			return
 		}
 	}
-	panic("Tried to remove item we're not on top of")
+	panic("Tried to move an item we were not on top of")
 }
 
 func (level *Level) Attack(c1, c2 *Character) {
@@ -298,8 +296,9 @@ func (game *Game) pickup(item *Item) {
 	if item != nil {
 		game.CurrentLevel.MoveItem(item, &game.CurrentLevel.Player.Character)
 	} else {
-		for _, item := range game.CurrentLevel.Items[game.CurrentLevel.Player.Pos] {
-			game.CurrentLevel.MoveItem(item, &game.CurrentLevel.Player.Character)
+		pos := game.CurrentLevel.Player.Pos
+		for i := len(game.CurrentLevel.Items[pos]) - 1; i >= 0; i-- {
+			game.CurrentLevel.MoveItem(game.CurrentLevel.Items[pos][i], &game.CurrentLevel.Player.Character)
 		}
 	}
 }
@@ -605,7 +604,9 @@ func (game *Game) loadLevels() map[string]*Level {
 					level.Items[pos] = append(level.Items[pos], NewHelmet(pos))
 					level.Map[y][x].Rune = Pending
 				case 'p':
-					level.Items[pos] = append(level.Items[pos], NewHealthPotion(pos))
+					level.Items[pos] = append(level.Items[pos], NewHealthPotion(pos, "Small"))
+					level.Items[pos] = append(level.Items[pos], NewHelmet(pos))
+					level.Items[pos] = append(level.Items[pos], NewSword(pos))
 					level.Map[y][x].Rune = Pending
 				case '@':
 					level.Player.Pos = pos

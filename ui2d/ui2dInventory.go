@@ -102,7 +102,25 @@ func (ui *ui) drawInventory(level *game.Level) {
 				panic(err)
 			}
 		} else {
-			if err := ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: locationX, Y: locationY, W: ui.itemW, H: ui.itemH}); err != nil {
+			var size int32
+			size = ui.itemW
+			if item.Name == "Potion" {
+				switch item.Size {
+				case "Small":
+					size = int32(float64(size) * .50)
+					locationX += ui.itemW/2 - size/2
+					locationY += ui.itemH/2 - size/2
+				case "Medium":
+					size = int32(float64(size) * .75)
+					locationX += ui.itemW/2 - size/2
+					locationY += ui.itemH/2 - size/2
+				case "Large":
+					size = int32(float64(size) * .95)
+					locationX += ui.itemW/2 - size/2
+					locationY += ui.itemH/2 - size/2
+				}
+			}
+			if err := ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: locationX, Y: locationY, W: size, H: size}); err != nil {
 				panic(err)
 			}
 		}
