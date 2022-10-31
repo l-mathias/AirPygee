@@ -115,7 +115,8 @@ const (
 	Hit
 	Portal
 	Pickup
-	Dropped
+	DropItem
+	ConsumePotion
 )
 
 type Level struct {
@@ -357,43 +358,23 @@ func (game *Game) resolveMovement(pos Pos) {
 	}
 }
 
-func (game *Game) unEquip(itemToUnEquip *Item) {
-	itemToUnEquip.Equipped = false
-	game.CurrentLevel.Player.Items = append(game.CurrentLevel.Player.Items, itemToUnEquip)
-	for i, item := range game.CurrentLevel.Player.EquippedItems {
-		if item == itemToUnEquip {
-			game.CurrentLevel.Player.EquippedItems = append(game.CurrentLevel.Player.EquippedItems[:i], game.CurrentLevel.Player.EquippedItems[i+1:]...)
-		}
+func (game *Game) heal(hp int) {
+	game.CurrentLevel.Player.Hitpoints += hp
+	if game.CurrentLevel.Player.Hitpoints > game.CurrentLevel.Player.MaxHitpoints {
+		game.CurrentLevel.Player.Hitpoints = game.CurrentLevel.Player.MaxHitpoints
 	}
 }
 
-func (game *Game) slotFreeToEquip(itemToCheck *Item) bool {
-	for _, item := range game.CurrentLevel.Player.EquippedItems {
-		if item.Location == itemToCheck.Location {
-			return false
-		}
-	}
-	return true
-}
-
-func (game *Game) equip(itemToEquip *Item) {
-	if game.slotFreeToEquip(itemToEquip) {
-		itemToEquip.Equipped = true
-		game.CurrentLevel.Player.EquippedItems = append(game.CurrentLevel.Player.EquippedItems, itemToEquip)
-		for i, item := range game.CurrentLevel.Player.Items {
-			if item == itemToEquip {
-				game.CurrentLevel.Player.Items = append(game.CurrentLevel.Player.Items[:i], game.CurrentLevel.Player.Items[i+1:]...)
-			}
-		}
-	}
-}
-
-func (game *Game) action(pos Pos) {
-	switch game.CurrentLevel.Map[pos.Y][pos.X].OverlayRune {
-	case ClosedDoor:
+func (game *Game) action(pos Pos, item *Item) {
+	switch {
+	case game.CurrentLevel.Map[pos.Y][pos.X].OverlayRune == ClosedDoor:
 		checkDoor(game.CurrentLevel, pos)
-	case OpenDoor:
+	case game.CurrentLevel.Map[pos.Y][pos.X].OverlayRune == OpenDoor:
 		checkDoor(game.CurrentLevel, pos)
+	case item != nil:
+		if item.Type == Potion {
+			game.consumePotion(item)
+		}
 	}
 }
 
@@ -417,15 +398,23 @@ func (level *Level) FrontOf() Pos {
 	}
 }
 
-func (game *Game) dropItem(itemToDrop *Item) {
-	player := game.CurrentLevel.Player
+func (game *Game) removeInventoryItem(itemToRemove *Item, character *Character) {
+	for i, item := range game.CurrentLevel.Player.Items {
+		if item == itemToRemove {
+			character.Items = append(game.CurrentLevel.Player.Items[:i], game.CurrentLevel.Player.Items[i+1:]...)
+			return
+		}
+	}
+	panic("Tried to drop bad item")
+}
 
+func (game *Game) dropItem(itemToDrop *Item, character *Character) {
 	for i, item := range game.CurrentLevel.Player.Items {
 		if item == itemToDrop {
-			game.CurrentLevel.Player.Items = append(game.CurrentLevel.Player.Items[:i], game.CurrentLevel.Player.Items[i+1:]...)
-			game.CurrentLevel.Items[player.Pos] = append(game.CurrentLevel.Items[player.Pos], itemToDrop)
-			game.CurrentLevel.AddEvent(player.Name + " dropped " + itemToDrop.Name)
-			game.CurrentLevel.LastEvent = Dropped
+			character.Items = append(game.CurrentLevel.Player.Items[:i], game.CurrentLevel.Player.Items[i+1:]...)
+			game.CurrentLevel.Items[character.Pos] = append(game.CurrentLevel.Items[character.Pos], itemToDrop)
+			game.CurrentLevel.AddEvent(character.Name + " dropped " + itemToDrop.Name)
+			game.CurrentLevel.LastEvent = DropItem
 			return
 		}
 	}
@@ -448,7 +437,7 @@ func (game *Game) handleInput(input *Input) {
 		newPos := Pos{p.X + 1, p.Y}
 		game.resolveMovement(newPos)
 	case Action:
-		game.action(game.CurrentLevel.FrontOf())
+		game.action(game.CurrentLevel.FrontOf(), input.Item)
 	case TakeAll:
 		game.pickup(nil)
 	case TakeItem:
@@ -460,7 +449,7 @@ func (game *Game) handleInput(input *Input) {
 			game.equip(input.Item)
 		}
 	case Drop:
-		game.dropItem(input.Item)
+		game.dropItem(input.Item, &game.CurrentLevel.Player.Character)
 	case CloseWindow:
 		close(input.LevelChannel)
 		chanIndex := 0
@@ -614,6 +603,9 @@ func (game *Game) loadLevels() map[string]*Level {
 					level.Map[y][x].Rune = Pending
 				case 'h':
 					level.Items[pos] = append(level.Items[pos], NewHelmet(pos))
+					level.Map[y][x].Rune = Pending
+				case 'p':
+					level.Items[pos] = append(level.Items[pos], NewHealthPotion(pos))
 					level.Map[y][x].Rune = Pending
 				case '@':
 					level.Player.Pos = pos

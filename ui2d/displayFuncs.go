@@ -37,14 +37,14 @@ func (ui *ui) displayStats(level *game.Level) {
 	}
 
 	// Life gauge using red rect on black rect
-	if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 928, Y: 1600, W: tileSize, H: tileSize}, &sdl.Rect{X: int32(level.Player.Pos.X)*tileSize + ui.offsetX, Y: int32((level.Player.Pos.Y-1))*tileSize + ui.offsetY + 20, W: tileSize, H: 5}); err != nil {
+	if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 928, Y: 1600, W: tileSize, H: tileSize}, &sdl.Rect{X: int32(level.Player.Pos.X)*tileSize + ui.offsetX, Y: int32(level.Player.Pos.Y-1)*tileSize + ui.offsetY + 20, W: tileSize, H: 5}); err != nil {
 		panic(err)
 	}
 
 	var gauge float64
 	gauge = float64(level.Player.Hitpoints) / float64(level.Player.MaxHitpoints)
 
-	if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 1024, Y: 1600, W: tileSize, H: tileSize}, &sdl.Rect{X: int32(level.Player.Pos.X)*tileSize + ui.offsetX, Y: int32((level.Player.Pos.Y-1))*tileSize + ui.offsetY + 20, W: tileSize * int32(gauge), H: 5}); err != nil {
+	if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 1024, Y: 1600, W: tileSize, H: tileSize}, &sdl.Rect{X: int32(level.Player.Pos.X)*tileSize + ui.offsetX, Y: int32(level.Player.Pos.Y-1)*tileSize + ui.offsetY + 20, W: int32(float64(tileSize) * gauge), H: 5}); err != nil {
 		panic(err)
 	}
 
