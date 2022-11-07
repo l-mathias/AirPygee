@@ -2,9 +2,7 @@ package ui2d
 
 //TODO - add damage on top of character when combat
 //TODO - add Player character selection
-//TODO - improve life gauge using shading
 //TODO - Improve fog of war effect using transparent texture or special tiles
-//TODO - Fix UI bug when dead, should recenter camera
 
 import (
 	"AirPygee/game"
@@ -224,6 +222,8 @@ func (ui *ui) loadSounds() {
 	ui.sounds.closeDoor = buildSoundsVariations("ui2d/assets/audio/sounds/Kenney/doorClose*.ogg")
 	ui.sounds.swing = buildSoundsVariations("ui2d/assets/audio/sounds/battle/swing*.wav")
 	ui.sounds.pickup = buildSoundsVariations("ui2d/assets/audio/sounds/Kenney/cloth*.ogg")
+	ui.sounds.potion = buildSoundsVariations("ui2d/assets/audio/sounds/Kenney/bubble*.wav")
+
 }
 
 func buildSoundsVariations(pattern string) []*mix.Chunk {
@@ -256,6 +256,7 @@ type sounds struct {
 	footstep  []*mix.Chunk
 	swing     []*mix.Chunk
 	pickup    []*mix.Chunk
+	potion    []*mix.Chunk
 }
 
 type FontSize int
@@ -580,6 +581,8 @@ func (ui *ui) Run() {
 					playRandomSound(ui.sounds.swing, soundsVolume)
 				case game.Pickup:
 					playRandomSound(ui.sounds.pickup, soundsVolume)
+				case game.ConsumePotion:
+					playRandomSound(ui.sounds.potion, soundsVolume)
 				default:
 				}
 				newLevel.LastEvent = game.Empty

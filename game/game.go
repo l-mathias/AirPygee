@@ -605,8 +605,6 @@ func (game *Game) loadLevels() map[string]*Level {
 					level.Map[y][x].Rune = Pending
 				case 'p':
 					level.Items[pos] = append(level.Items[pos], NewHealthPotion(pos, "Small"))
-					level.Items[pos] = append(level.Items[pos], NewHelmet(pos))
-					level.Items[pos] = append(level.Items[pos], NewSword(pos))
 					level.Map[y][x].Rune = Pending
 				case '@':
 					level.Player.Pos = pos
