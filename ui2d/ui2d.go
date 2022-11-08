@@ -26,8 +26,6 @@ const (
 	FontSmall FontSize = iota
 	FontMedium
 	FontLarge
-	musicVolume  int = 32
-	soundsVolume int = 10
 )
 
 type uiState int
@@ -83,6 +81,10 @@ type ui struct {
 	window              *sdl.Window
 	textureAtlas        *sdl.Texture
 	tileMap             *sdl.Texture
+
+	// Sounds & Music
+	musicVolume  int
+	soundsVolume int
 
 	//player
 	pTexture                                          *sdl.Texture
@@ -169,6 +171,8 @@ func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 		panic(err)
 	}
 
+	ui.musicVolume = 32
+	ui.soundsVolume = 10
 	ui.loadSounds()
 
 	ui.invWidth = int32(float64(ui.winWidth) * 0.40)
@@ -216,41 +220,13 @@ func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 	return ui
 }
 
-func (ui *ui) buildMenuButtons() {
-	button := ui.getRectFromTextureName("buttonLong_brown.png")
-
-	// button Quit
-	tex := ui.stringToTexture("Quit", sdl.Color{R: 139, G: 69, B: 19}, FontMedium)
-	_, _, w, h, _ := tex.Query()
-
-	ui.menuButtons = append(ui.menuButtons, &menuButton{
-		name:           "Quit",
-		buttonRect:     &sdl.Rect{X: ui.invOffsetX + ui.invWidth/2 - button.W/2, Y: ui.invOffsetY + button.H, W: button.W, H: button.H},
-		buttonTexture:  tex,
-		buttonTextRect: &sdl.Rect{X: ui.invOffsetX + ui.invWidth/2 - w/2, Y: ui.invOffsetY + button.H + (button.H / 2) - (h / 2), W: w, H: h},
-		highlighted:    true,
-	})
-
-	// button Continue
-	tex = ui.stringToTexture("Continue", sdl.Color{R: 139, G: 69, B: 19}, FontMedium)
-	_, _, w, h, _ = tex.Query()
-
-	ui.menuButtons = append(ui.menuButtons, &menuButton{
-		name:           "Continue",
-		buttonRect:     &sdl.Rect{X: ui.invOffsetX + ui.invWidth/2 - button.W/2, Y: ui.invOffsetY + button.H*3, W: button.W, H: button.H},
-		buttonTexture:  tex,
-		buttonTextRect: &sdl.Rect{X: ui.invOffsetX + ui.invWidth/2 - w/2, Y: ui.invOffsetY + button.H*3 + (button.H / 2) - (h / 2), W: w, H: h},
-	})
-
-}
-
 func (ui *ui) loadSounds() {
 	if err := mix.OpenAudio(22050, mix.DEFAULT_FORMAT, 2, 4096); err != nil {
 		panic(err)
 	}
 
 	mus, err := mix.LoadMUS("ui2d/assets/audio/music/the_field_of_dreams.mp3")
-	mix.VolumeMusic(musicVolume)
+	mix.VolumeMusic(ui.musicVolume)
 
 	if err != nil {
 		panic(err)
@@ -615,18 +591,18 @@ func (ui *ui) Run() {
 			if ok {
 				switch newLevel.LastEvent {
 				case game.Move:
-					playRandomSound(ui.sounds.footstep, soundsVolume)
+					playRandomSound(ui.sounds.footstep, ui.soundsVolume)
 					//TODO - improve animations
 				case game.DoorOpen:
-					playRandomSound(ui.sounds.openDoor, soundsVolume)
+					playRandomSound(ui.sounds.openDoor, ui.soundsVolume)
 				case game.DoorClose:
-					playRandomSound(ui.sounds.closeDoor, soundsVolume)
+					playRandomSound(ui.sounds.closeDoor, ui.soundsVolume)
 				case game.Attack:
-					playRandomSound(ui.sounds.swing, soundsVolume)
+					playRandomSound(ui.sounds.swing, ui.soundsVolume)
 				case game.Pickup:
-					playRandomSound(ui.sounds.pickup, soundsVolume)
+					playRandomSound(ui.sounds.pickup, ui.soundsVolume)
 				case game.ConsumePotion:
-					playRandomSound(ui.sounds.potion, soundsVolume)
+					playRandomSound(ui.sounds.potion, ui.soundsVolume)
 				default:
 				}
 				newLevel.LastEvent = game.Empty
