@@ -29,7 +29,7 @@ func (ui *ui) displayStats(level *game.Level) {
 	}
 
 	// Drawing Hit points count
-	tex = ui.stringToTexture("Life "+strconv.Itoa(level.Player.Hitpoints), sdl.Color{R: 255}, FontMedium)
+	tex = ui.stringToTexture("Life "+strconv.Itoa(level.Player.Health), sdl.Color{R: 255}, FontMedium)
 	_, _, w, h, _ = tex.Query()
 	err = ui.renderer.Copy(tex, nil, &sdl.Rect{X: tileSize, Y: int32(ui.winHeight / 2), W: w, H: h})
 	if err != nil {
@@ -42,7 +42,7 @@ func (ui *ui) displayStats(level *game.Level) {
 	}
 
 	var gauge float64
-	gauge = float64(level.Player.Hitpoints) / float64(level.Player.MaxHitpoints)
+	gauge = float64(level.Player.Health) / float64(level.Player.MaxHealth)
 
 	if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 1024, Y: 1600, W: tileSize, H: tileSize}, &sdl.Rect{X: int32(level.Player.Pos.X)*tileSize + ui.offsetX, Y: int32(level.Player.Pos.Y-1)*tileSize + ui.offsetY + 20, W: int32(float64(tileSize) * gauge), H: 5}); err != nil {
 		panic(err)
@@ -62,7 +62,7 @@ func (ui *ui) displayMonsters(level *game.Level) {
 				panic(err)
 			}
 			var gauge float64
-			gauge = float64(level.Monsters[pos].Hitpoints) / float64(level.Monsters[pos].MaxHitpoints)
+			gauge = float64(level.Monsters[pos].Health) / float64(level.Monsters[pos].MaxHealth)
 
 			if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 1024, Y: 1600, W: tileSize, H: tileSize}, &sdl.Rect{X: int32(level.Monsters[pos].X)*tileSize + ui.offsetX, Y: int32((level.Monsters[pos].Y-1))*tileSize + ui.offsetY + 20, W: tileSize * int32(gauge), H: 5}); err != nil {
 				panic(err)
@@ -136,4 +136,114 @@ func (ui *ui) displayEvents(level *game.Level) {
 			break
 		}
 	}
+}
+
+func (ui *ui) highlightPrevious() {
+	for i, b := range ui.menuButtons {
+		if b.highlighted {
+			b.highlighted = false
+			if i-1 < 0 {
+				ui.menuButtons[len(ui.menuButtons)-1].highlighted = true
+				return
+			} else {
+				ui.menuButtons[i-1].highlighted = true
+				return
+			}
+		}
+	}
+}
+
+func (ui *ui) highlightNext() {
+	for i, b := range ui.menuButtons {
+		if b.highlighted {
+			b.highlighted = false
+			if i+1 == len(ui.menuButtons) {
+				ui.menuButtons[0].highlighted = true
+				return
+			} else {
+				ui.menuButtons[i+1].highlighted = true
+				return
+			}
+		}
+	}
+}
+
+func (ui *ui) getHighlightedButton() *menuButton {
+	for _, b := range ui.menuButtons {
+		if b.highlighted {
+			return b
+		}
+	}
+	return nil
+}
+
+func (ui *ui) doMenuAction() {
+	button := ui.getHighlightedButton()
+
+	switch button.name {
+	case "Continue":
+		ui.state = UIMain
+	case "Quit":
+		ui.inputChan <- &game.Input{Typ: game.CloseWindow, LevelChannel: ui.levelChan}
+		ui.inputChan <- &game.Input{Typ: game.QuitGame}
+	}
+}
+
+func (ui *ui) menuActions() {
+	ui.displayMenu()
+	for ui.state == UIMenu {
+		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
+			switch e := event.(type) {
+			case *sdl.QuitEvent:
+				ui.inputChan <- &game.Input{Typ: game.QuitGame}
+			case *sdl.WindowEvent:
+				if e.Event == sdl.WINDOWEVENT_CLOSE {
+					ui.inputChan <- &game.Input{Typ: game.CloseWindow, LevelChannel: ui.levelChan}
+				}
+			case *sdl.KeyboardEvent:
+				if e.State != sdl.PRESSED {
+					break
+				}
+				switch e.Keysym.Sym {
+				case sdl.K_RETURN:
+					ui.doMenuAction()
+				case sdl.K_UP:
+					ui.highlightPrevious()
+					ui.displayMenu()
+				case sdl.K_DOWN:
+					ui.highlightNext()
+					ui.displayMenu()
+				case sdl.K_ESCAPE:
+					return
+				}
+			}
+		}
+	}
+}
+
+func (ui *ui) displayMenu() {
+	if err := ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("panel_beige.png"), &sdl.Rect{X: ui.invOffsetX, Y: ui.invOffsetY, W: ui.invWidth, H: ui.invHeight}); err != nil {
+		panic(err)
+	}
+
+	buttonStandard := ui.getRectFromTextureName("buttonLong_brown.png")
+	buttonHighlighted := ui.getRectFromTextureName("buttonLong_blue.png")
+
+	for _, b := range ui.menuButtons {
+		var button *sdl.Rect
+		if b.highlighted {
+			button = buttonHighlighted
+		} else {
+			button = buttonStandard
+		}
+		if err := ui.renderer.Copy(ui.uipack, button, b.buttonRect); err != nil {
+			panic(err)
+		}
+		err := ui.renderer.Copy(b.buttonTexture, nil, b.buttonTextRect)
+		if err != nil {
+			panic(err)
+		}
+	}
+	ui.renderer.Present()
+
 }

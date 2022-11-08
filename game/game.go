@@ -93,8 +93,8 @@ type Entity struct {
 
 type Character struct {
 	Entity
-	Hitpoints     int
-	MaxHitpoints  int
+	Health        int
+	MaxHealth     int
 	Strength      int
 	Speed         float64
 	ActionPoints  float64
@@ -152,9 +152,9 @@ func (level *Level) MoveItem(itemToMove *Item, character *Character) {
 func (level *Level) Attack(c1, c2 *Character) {
 	c1.ActionPoints--
 	c1AttackPower := c1.Strength
-	c2.Hitpoints -= c1AttackPower
+	c2.Health -= c1AttackPower
 
-	if c2.Hitpoints > 0 {
+	if c2.Health > 0 {
 		level.AddEvent(c1.Name + " attacked " + c2.Name + " for " + strconv.Itoa(c1AttackPower))
 		level.LastEvent = Attack
 	} else {
@@ -344,10 +344,10 @@ func (game *Game) resolveMovement(pos Pos) {
 	game.CurrentLevel.Player.CameFrom = game.CurrentLevel.Player.Pos
 	if exists {
 		game.CurrentLevel.Attack(&level.Player.Character, &monster.Character)
-		if monster.Hitpoints <= 0 {
+		if monster.Health <= 0 {
 			monster.kill(level)
 		}
-		if game.CurrentLevel.Player.Hitpoints <= 0 {
+		if game.CurrentLevel.Player.Health <= 0 {
 			game.dead()
 		}
 	} else if canWalk(level, pos) {
@@ -358,9 +358,9 @@ func (game *Game) resolveMovement(pos Pos) {
 }
 
 func (game *Game) heal(hp int) {
-	game.CurrentLevel.Player.Hitpoints += hp
-	if game.CurrentLevel.Player.Hitpoints > game.CurrentLevel.Player.MaxHitpoints {
-		game.CurrentLevel.Player.Hitpoints = game.CurrentLevel.Player.MaxHitpoints
+	game.CurrentLevel.Player.Health += hp
+	if game.CurrentLevel.Player.Health > game.CurrentLevel.Player.MaxHealth {
+		game.CurrentLevel.Player.Health = game.CurrentLevel.Player.MaxHealth
 	}
 }
 
@@ -758,7 +758,7 @@ func (game *Game) Run() {
 
 		for _, monster := range game.CurrentLevel.Monsters {
 			monster.Update(game)
-			if game.CurrentLevel.Player.Hitpoints <= 0 {
+			if game.CurrentLevel.Player.Health <= 0 {
 				game.dead()
 				break
 			}

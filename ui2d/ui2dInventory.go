@@ -8,15 +8,15 @@ import (
 func (ui *ui) drawInventory(level *game.Level) {
 	var locationX, locationY int32
 
-	playerSrcRect := sdl.Rect{X: 0, Y: 0, W: 48, H: 48}
-	playerX := ((ui.invWidth - (ui.invWidth / 2)) / 2) + ui.invOffsetX
-	playerY := ((ui.invHeight - (ui.invHeight / 2)) / 2) + ui.invOffsetY
+	playerSrcRect := sdl.Rect{X: 0, Y: 0, W: 26, H: 36}
+	playerX := ((ui.invWidth - (ui.invWidth / 3)) / 2) + ui.invOffsetX
+	playerY := ((ui.invHeight - (ui.invHeight / 3)) / 2) + ui.invOffsetY
 
 	if err := ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("panel_beige.png"), &sdl.Rect{X: ui.invOffsetX, Y: ui.invOffsetY, W: ui.invWidth, H: ui.invHeight}); err != nil {
 		panic(err)
 	}
 
-	if err := ui.renderer.Copy(ui.pTexture, &playerSrcRect, &sdl.Rect{X: playerX, Y: playerY, W: ui.invWidth / 2, H: ui.invHeight / 2}); err != nil {
+	if err := ui.renderer.Copy(ui.pTexture, &playerSrcRect, &sdl.Rect{X: playerX, Y: playerY, W: ui.invWidth / 3, H: ui.invHeight / 3}); err != nil {
 		panic(err)
 	}
 

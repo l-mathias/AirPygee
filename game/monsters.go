@@ -7,8 +7,8 @@ type Monster struct {
 func NewRat(p Pos) *Monster {
 	return &Monster{Character{
 		Entity:       Entity{Pos: p, Name: "Rat", Rune: 'R'},
-		Hitpoints:    5,
-		MaxHitpoints: 5,
+		Health:       5,
+		MaxHealth:    5,
 		Strength:     1,
 		Speed:        2.0,
 		ActionPoints: 0.0,
@@ -18,8 +18,8 @@ func NewRat(p Pos) *Monster {
 func NewSpider(p Pos) *Monster {
 	return &Monster{Character{
 		Entity:       Entity{Pos: p, Name: "Spider", Rune: 'S'},
-		Hitpoints:    10,
-		MaxHitpoints: 10,
+		Health:       10,
+		MaxHealth:    10,
 		Strength:     2,
 		Speed:        1.0,
 		ActionPoints: 0.0,
@@ -70,7 +70,7 @@ func (m *Monster) Move(to Pos, game *Game) {
 	if to == game.CurrentLevel.Player.Pos {
 		game.CurrentLevel.Attack(&m.Character, &game.CurrentLevel.Player.Character)
 
-		if m.Hitpoints <= 0 {
+		if m.Health <= 0 {
 			delete(game.CurrentLevel.Monsters, m.Pos)
 		}
 	}

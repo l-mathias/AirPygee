@@ -35,6 +35,7 @@ type uiState int
 const (
 	UIMain uiState = iota
 	UIInventory
+	UIMenu
 	itemSizeRatio float64 = 0.15
 	tileSize      int32   = 32
 )
@@ -64,6 +65,14 @@ func getMouseState() *mouseState {
 	result.rightButton = !(rightButton == 0)
 
 	return &result
+}
+
+type menuButton struct {
+	name           string
+	buttonRect     *sdl.Rect
+	buttonTexture  *sdl.Texture
+	buttonTextRect *sdl.Rect
+	highlighted    bool
 }
 
 type ui struct {
@@ -97,6 +106,7 @@ type ui struct {
 	invOffsetX, invOffsetY, invWidth, invHeight, itemW, itemH      int32
 	invHeadX, invHeadY, invLHandX, invLHandY, invRHandX, invRHandY int32
 	invLegsX, invLegsY, invChestX, invChestY, invFootsX, invFootsY int32
+
 	// drag&drop
 	draggedItem       *game.Item
 	dragMode          dragMode
@@ -106,6 +116,9 @@ type ui struct {
 	// Fonts
 	fontSmall, fontMedium, fontLarge          *ttf.Font
 	str2TexSmall, str2TexMedium, str2TexLarge map[string]*sdl.Texture
+
+	//Main Menu
+	menuButtons []*menuButton
 }
 
 func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
@@ -197,7 +210,38 @@ func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 
 	ui.dragMode = none
 
+	ui.menuButtons = make([]*menuButton, 0)
+	ui.buildMenuButtons()
+
 	return ui
+}
+
+func (ui *ui) buildMenuButtons() {
+	button := ui.getRectFromTextureName("buttonLong_brown.png")
+
+	// button Quit
+	tex := ui.stringToTexture("Quit", sdl.Color{R: 139, G: 69, B: 19}, FontMedium)
+	_, _, w, h, _ := tex.Query()
+
+	ui.menuButtons = append(ui.menuButtons, &menuButton{
+		name:           "Quit",
+		buttonRect:     &sdl.Rect{X: ui.invOffsetX + ui.invWidth/2 - button.W/2, Y: ui.invOffsetY + button.H, W: button.W, H: button.H},
+		buttonTexture:  tex,
+		buttonTextRect: &sdl.Rect{X: ui.invOffsetX + ui.invWidth/2 - w/2, Y: ui.invOffsetY + button.H + (button.H / 2) - (h / 2), W: w, H: h},
+		highlighted:    true,
+	})
+
+	// button Continue
+	tex = ui.stringToTexture("Continue", sdl.Color{R: 139, G: 69, B: 19}, FontMedium)
+	_, _, w, h, _ = tex.Query()
+
+	ui.menuButtons = append(ui.menuButtons, &menuButton{
+		name:           "Continue",
+		buttonRect:     &sdl.Rect{X: ui.invOffsetX + ui.invWidth/2 - button.W/2, Y: ui.invOffsetY + button.H*3, W: button.W, H: button.H},
+		buttonTexture:  tex,
+		buttonTextRect: &sdl.Rect{X: ui.invOffsetX + ui.invWidth/2 - w/2, Y: ui.invOffsetY + button.H*3 + (button.H / 2) - (h / 2), W: w, H: h},
+	})
+
 }
 
 func (ui *ui) loadSounds() {
@@ -588,7 +632,7 @@ func (ui *ui) Run() {
 				newLevel.LastEvent = game.Empty
 				if ui.state == UIMain {
 					ui.draw(newLevel)
-				} else {
+				} else if ui.state == UIInventory {
 					ui.draw(newLevel)
 					ui.drawInventory(newLevel)
 				}
@@ -656,6 +700,8 @@ func (ui *ui) Run() {
 							switch item.Type {
 							case game.Potion:
 								ui.inputChan <- &game.Input{Typ: game.Action, Item: item}
+							case game.Weapons, game.Armors:
+								ui.inputChan <- &game.Input{Typ: game.Equip, Item: item}
 							}
 						}
 					}
@@ -665,6 +711,14 @@ func (ui *ui) Run() {
 					break
 				}
 				switch e.Keysym.Sym {
+				case sdl.K_ESCAPE:
+					if ui.state == UIMain {
+						ui.state = UIMenu
+						ui.draw(newLevel)
+						ui.menuActions()
+					}
+					ui.state = UIMain
+					ui.draw(newLevel)
 				case sdl.K_UP:
 					input = game.Input{Typ: game.Up}
 					ui.UpdatePlayer(game.Up)
