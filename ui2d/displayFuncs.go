@@ -64,7 +64,7 @@ func (ui *ui) displayHUD(level *game.Level) {
 
 }
 
-func (ui *ui) displayPopupItem(item *game.Item, mouseX, mouseY int32) {
+func (ui *ui) displayPopupItem(item game.Item, mouseX, mouseY int32) {
 	ui.popup = ui.getSinglePixel(sdl.Color{0, 0, 0, 128})
 	ui.popup.SetBlendMode(sdl.BLENDMODE_BLEND)
 	//textStart := int32(float64(ui.winHeight) * .68)
@@ -74,7 +74,7 @@ func (ui *ui) displayPopupItem(item *game.Item, mouseX, mouseY int32) {
 	ui.renderer.Copy(ui.popup, nil, &sdl.Rect{mouseX, mouseY, popupWidth, popupHeight})
 
 	// display item description
-	tex := ui.stringToTexture("Description: "+item.Description, sdl.Color{255, 0, 0, 0}, FontSmall)
+	tex := ui.stringToTexture("Description: "+item.GetDescription(), sdl.Color{255, 0, 0, 0}, FontSmall)
 	_, _, w, h, _ := tex.Query()
 	ui.renderer.Copy(tex, nil, &sdl.Rect{mouseX, mouseY + int32(float64(popupHeight)*.85), w, h})
 }
@@ -111,11 +111,11 @@ func (ui *ui) displayItems(level *game.Level) {
 	for pos, items := range level.Items {
 		if level.Map[pos.Y][pos.X].Visible {
 			for _, item := range items {
-				itemSrcRect := ui.textureIndex[item.Rune][0]
+				itemSrcRect := ui.textureIndex[item.GetRune()][0]
 				var size int32
 				size = tileSize
-				if item.Name == "Potion" {
-					switch item.Size {
+				if item.GetName() == "Potion" {
+					switch item.(game.ConsumableItem).GetSize() {
 					case "Small":
 						size = int32(float64(size) * .50)
 					case "Medium":

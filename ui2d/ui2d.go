@@ -113,7 +113,7 @@ type ui struct {
 	invLegsX, invLegsY, invChestX, invChestY, invFootsX, invFootsY int32
 
 	// drag&drop
-	draggedItem       *game.Item
+	draggedItem       game.Item
 	dragMode          dragMode
 	currentMouseState *mouseState
 	prevMouseState    *mouseState
@@ -529,7 +529,7 @@ func (ui *ui) draw(level *game.Level) {
 	if len(level.Items[level.Player.Pos]) > 0 {
 		groundItems := level.Items[level.Player.Pos]
 		for i, item := range groundItems {
-			itemSrcRect := ui.textureIndex[item.Rune][0]
+			itemSrcRect := ui.textureIndex[item.GetRune()][0]
 			err := ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: int32(ui.winWidth) - tileSize - int32(i)*tileSize, Y: 0, W: tileSize, H: tileSize})
 			if err != nil {
 				panic(err)
@@ -570,7 +570,7 @@ func (ui *ui) getGroundItemRect(i int) *sdl.Rect {
 }
 
 // pickupGroundItem will check if clicked on a ground item, then take it
-func (ui *ui) pickupGroundItem(level *game.Level, mouseX, mouseY int32) *game.Item {
+func (ui *ui) pickupGroundItem(level *game.Level, mouseX, mouseY int32) game.Item {
 	items := level.Items[level.Player.Pos]
 	for i, item := range items {
 		itemRect := ui.getGroundItemRect(i)
@@ -660,7 +660,7 @@ func (ui *ui) Run() {
 
 					// if clicked on item inventory or equipped item
 					if ui.draggedItem != nil && ui.dragMode != none {
-						var item *game.Item
+						var item game.Item
 						if ui.dragMode == fromInventory {
 							if ui.hasClickedOnValidEquipSlot(e.X, e.Y, ui.draggedItem) && ui.isSlotFree(newLevel, ui.draggedItem) {
 								item = ui.draggedItem
@@ -684,7 +684,7 @@ func (ui *ui) Run() {
 					if ui.state == UIInventory {
 						item := ui.clickValidItem(newLevel, e.X, e.Y)
 						if item != nil {
-							switch item.Type {
+							switch item.GetEntity().Type {
 							case game.Potions:
 								ui.inputChan <- &game.Input{Typ: game.Action, Item: item}
 							case game.Weapons, game.Armors:

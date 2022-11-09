@@ -59,7 +59,7 @@ type Tile struct {
 
 type Input struct {
 	Typ          InputType
-	Item         *Item
+	Item         Item
 	LevelChannel chan *Level
 }
 
@@ -89,6 +89,9 @@ type Entity struct {
 	WantedTo Pos
 	Name     string
 	Rune     rune
+	Location
+	Type        ItemType
+	Description string
 }
 
 type Character struct {
@@ -99,8 +102,8 @@ type Character struct {
 	Speed         float64
 	ActionPoints  float64
 	SightRange    int
-	EquippedItems []*Item
-	Items         []*Item
+	EquippedItems []Item
+	Items         []Item
 	InventorySize int
 }
 
@@ -112,8 +115,6 @@ const (
 	DoorOpen
 	DoorClose
 	Attack
-	Hit
-	Portal
 	Pickup
 	DropItem
 	ConsumePotion
@@ -124,7 +125,7 @@ type Level struct {
 	Player    *Player
 	Monsters  map[Pos]*Monster
 	Portals   map[Pos]*LevelPos
-	Items     map[Pos][]*Item
+	Items     map[Pos][]Item
 	Events    []string
 	EventPos  int
 	Debug     map[Pos]bool
@@ -135,13 +136,13 @@ func (c *Character) Pass() {
 	c.ActionPoints -= c.Speed
 }
 
-func (level *Level) MoveItem(itemToMove *Item, character *Character) {
+func (level *Level) MoveItem(itemToMove Item, character *Character) {
 	pos := character.Pos
 	for i, item := range level.Items[pos] {
 		if item == itemToMove {
 			level.Items[pos] = append(level.Items[pos][:i], level.Items[pos][i+1:]...)
 			character.Items = append(character.Items, item)
-			level.AddEvent(character.Name + " picked up:" + item.Name)
+			level.AddEvent(character.Name + " picked up:" + item.GetName())
 			level.LastEvent = Pickup
 			return
 		}
@@ -292,7 +293,7 @@ func canSeeTrough(level *Level, pos Pos) bool {
 }
 
 // pickup if nil, we'll take all the objects on the ground
-func (game *Game) pickup(item *Item) {
+func (game *Game) pickup(item Item) {
 	if item != nil {
 		game.CurrentLevel.MoveItem(item, &game.CurrentLevel.Player.Character)
 	} else {
@@ -364,15 +365,15 @@ func (game *Game) heal(hp int) {
 	}
 }
 
-func (game *Game) action(pos Pos, item *Item) {
+func (game *Game) action(pos Pos, item Item) {
 	switch {
 	case game.CurrentLevel.Map[pos.Y][pos.X].OverlayRune == ClosedDoor:
 		checkDoor(game.CurrentLevel, pos)
 	case game.CurrentLevel.Map[pos.Y][pos.X].OverlayRune == OpenDoor:
 		checkDoor(game.CurrentLevel, pos)
 	case item != nil:
-		if item.Type == Potions {
-			game.consumePotion(item)
+		if item.GetEntity().Type == Potions {
+			game.consumePotion(item.(ConsumableItem))
 		}
 	}
 }
@@ -397,7 +398,7 @@ func (level *Level) FrontOf() Pos {
 	}
 }
 
-func (game *Game) removeInventoryItem(itemToRemove *Item, character *Character) {
+func (game *Game) removeInventoryItem(itemToRemove Item, character *Character) {
 	for i, item := range game.CurrentLevel.Player.Items {
 		if item == itemToRemove {
 			character.Items = append(game.CurrentLevel.Player.Items[:i], game.CurrentLevel.Player.Items[i+1:]...)
@@ -407,12 +408,12 @@ func (game *Game) removeInventoryItem(itemToRemove *Item, character *Character) 
 	panic("Tried to drop bad item")
 }
 
-func (game *Game) dropItem(itemToDrop *Item, character *Character) {
+func (game *Game) dropItem(itemToDrop Item, character *Character) {
 	for i, item := range game.CurrentLevel.Player.Items {
 		if item == itemToDrop {
 			character.Items = append(game.CurrentLevel.Player.Items[:i], game.CurrentLevel.Player.Items[i+1:]...)
 			game.CurrentLevel.Items[character.Pos] = append(game.CurrentLevel.Items[character.Pos], itemToDrop)
-			game.CurrentLevel.AddEvent(character.Name + " dropped " + itemToDrop.Name)
+			game.CurrentLevel.AddEvent(character.Name + " dropped " + itemToDrop.GetName())
 			game.CurrentLevel.LastEvent = DropItem
 			return
 		}
@@ -442,10 +443,10 @@ func (game *Game) handleInput(input *Input) {
 	case TakeItem:
 		game.pickup(input.Item)
 	case Equip:
-		if input.Item.Equipped {
-			game.unEquip(input.Item)
+		if input.Item.(EquippableItem).IsEquipped() {
+			game.unEquip(input.Item.(EquippableItem))
 		} else {
-			game.equip(input.Item)
+			game.equip(input.Item.(EquippableItem))
 		}
 	case Drop:
 		game.dropItem(input.Item, &game.CurrentLevel.Player.Character)
@@ -560,7 +561,7 @@ func (game *Game) loadLevels() map[string]*Level {
 		level.Map = make([][]Tile, len(levelLines))
 		level.Monsters = make(map[Pos]*Monster, 0)
 		level.Portals = make(map[Pos]*LevelPos, 0)
-		level.Items = make(map[Pos][]*Item, 0)
+		level.Items = make(map[Pos][]Item, 0)
 		level.LastEvent = -1
 
 		for i := range level.Map {

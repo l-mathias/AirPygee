@@ -30,7 +30,7 @@ func (m *Monster) kill(level *Level) {
 	delete(level.Monsters, m.Pos)
 	groundItems := level.Items[m.Pos]
 	for _, item := range m.Items {
-		item.Pos = m.Pos
+		item.SetPos(m.Pos)
 		groundItems = append(groundItems, item)
 	}
 	level.Items[m.Pos] = groundItems

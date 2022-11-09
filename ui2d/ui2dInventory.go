@@ -49,9 +49,9 @@ func (ui *ui) drawInventory(level *game.Level) {
 	}
 
 	for i, item := range level.Player.EquippedItems {
-		itemSrcRect := ui.textureIndex[item.Rune][0]
+		itemSrcRect := ui.textureIndex[item.GetRune()][0]
 
-		switch item.Location {
+		switch item.GetEntity().Location {
 		case game.Head:
 			locationX = ui.invHeadX
 			locationY = ui.invHeadY
@@ -89,7 +89,7 @@ func (ui *ui) drawInventory(level *game.Level) {
 	var countX int32 = 0
 	var countY int32 = 0
 	for _, item := range level.Player.Items {
-		itemSrcRect := ui.textureIndex[item.Rune][0]
+		itemSrcRect := ui.textureIndex[item.GetRune()][0]
 		if countX%5 == 0 {
 			countX = 0
 			countY++
@@ -104,8 +104,8 @@ func (ui *ui) drawInventory(level *game.Level) {
 		} else {
 			var size int32
 			size = ui.itemW
-			if item.Name == "Potion" {
-				switch item.Size {
+			if item.GetName() == "Potion" {
+				switch item.(game.ConsumableItem).GetSize() {
 				case "Small":
 					size = int32(float64(size) * .50)
 					locationX += ui.itemW/2 - size/2
@@ -165,10 +165,10 @@ func (ui *ui) getInventoryItemRect(id int, level *game.Level) *sdl.Rect {
 
 // getEquippedItemRect based on arbitraries items positions, will return the corresponding
 // rectangle in order to compare with click position and then unequip
-func (ui *ui) getEquippedItemRect(item *game.Item) *sdl.Rect {
+func (ui *ui) getEquippedItemRect(item game.Item) *sdl.Rect {
 	var locationX, locationY int32
 
-	switch item.Location {
+	switch item.GetEntity().Location {
 	case game.Head:
 		locationX = ui.invHeadX
 		locationY = ui.invHeadY
@@ -192,7 +192,7 @@ func (ui *ui) getEquippedItemRect(item *game.Item) *sdl.Rect {
 	return &sdl.Rect{X: locationX, Y: locationY, W: ui.itemW, H: ui.itemH}
 }
 
-func (ui *ui) clickValidItem(level *game.Level, mouseX, mouseY int32) *game.Item {
+func (ui *ui) clickValidItem(level *game.Level, mouseX, mouseY int32) game.Item {
 	for i, item := range level.Player.Items {
 		itemRect := ui.getInventoryItemRect(i, level)
 		if itemRect.HasIntersection(&sdl.Rect{X: mouseX, Y: mouseY, W: 1, H: 1}) {
@@ -212,16 +212,16 @@ func (ui *ui) clickValidItem(level *game.Level, mouseX, mouseY int32) *game.Item
 	return nil
 }
 
-func (ui *ui) isSlotFree(level *game.Level, itemToEquip *game.Item) bool {
+func (ui *ui) isSlotFree(level *game.Level, itemToEquip game.Item) bool {
 	for _, item := range level.Player.EquippedItems {
-		if itemToEquip.Location == item.Location {
+		if itemToEquip.GetEntity().Location == item.GetEntity().Location {
 			return false
 		}
 	}
 	return true
 }
 
-func (ui *ui) hasClickedOnValidEquipSlot(mouseX, mouseY int32, item *game.Item) bool {
+func (ui *ui) hasClickedOnValidEquipSlot(mouseX, mouseY int32, item game.Item) bool {
 	itemRect := ui.getEquippedItemRect(item)
 	if itemRect.HasIntersection(&sdl.Rect{X: mouseX, Y: mouseY, W: 1, H: 1}) {
 		return true
