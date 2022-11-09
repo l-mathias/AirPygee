@@ -10,7 +10,7 @@ import (
 	"strconv"
 )
 
-//TODO - improve loadWorld loadLevels - one should call the other one
+// TODO - improve loadWorld loadLevels - one should call the other one
 
 const (
 	None InputType = iota
@@ -371,7 +371,7 @@ func (game *Game) action(pos Pos, item *Item) {
 	case game.CurrentLevel.Map[pos.Y][pos.X].OverlayRune == OpenDoor:
 		checkDoor(game.CurrentLevel, pos)
 	case item != nil:
-		if item.Type == Potion {
+		if item.Type == Potions {
 			game.consumePotion(item)
 		}
 	}

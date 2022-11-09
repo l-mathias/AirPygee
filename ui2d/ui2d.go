@@ -1,8 +1,8 @@
 package ui2d
 
-//TODO - add damage on top of character when combat
-//TODO - add Player character selection
-//TODO - Improve fog of war effect using transparent texture or special tiles
+// TODO - add damage on top of character when combat
+// TODO - add Player character selection
+// TODO - Improve fog of war effect using transparent texture or special tiles
 
 import (
 	"AirPygee/game"
@@ -93,6 +93,9 @@ type ui struct {
 	pSrc                                              sdl.Rect
 	pDest                                             sdl.Rect
 
+	// popup menu
+	popup *sdl.Texture
+
 	// UI Theme
 	uipack       *sdl.Texture
 	texturesList SubTextures
@@ -162,11 +165,11 @@ func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 	if err != nil {
 		panic(err)
 	}
-	ui.fontMedium, err = ttf.OpenFont("ui2d/assets/Kingthings_Foundation.ttf", 32)
+	ui.fontMedium, err = ttf.OpenFont("ui2d/assets/Kingthings_Foundation.ttf", 24)
 	if err != nil {
 		panic(err)
 	}
-	ui.fontLarge, err = ttf.OpenFont("ui2d/assets/Kingthings_Foundation.ttf", 64)
+	ui.fontLarge, err = ttf.OpenFont("ui2d/assets/Kingthings_Foundation.ttf", 32)
 	if err != nil {
 		panic(err)
 	}
@@ -518,6 +521,7 @@ func (ui *ui) draw(level *game.Level) {
 	ui.displayMonsters(level)
 	ui.displayItems(level)
 	ui.drawPlayer(level)
+	ui.displayHUD(level)
 	ui.displayStats(level)
 	ui.displayEvents(level)
 
@@ -592,7 +596,7 @@ func (ui *ui) Run() {
 				switch newLevel.LastEvent {
 				case game.Move:
 					playRandomSound(ui.sounds.footstep, ui.soundsVolume)
-					//TODO - improve animations
+					// TODO - improve animations
 				case game.DoorOpen:
 					playRandomSound(ui.sounds.openDoor, ui.soundsVolume)
 				case game.DoorClose:
@@ -625,7 +629,14 @@ func (ui *ui) Run() {
 					ui.inputChan <- &game.Input{Typ: game.CloseWindow, LevelChannel: ui.levelChan}
 				}
 			case *sdl.MouseMotionEvent:
-				if ui.draggedItem != nil && ui.state == UIInventory {
+				item := ui.clickValidItem(newLevel, e.X, e.Y)
+				if (ui.draggedItem != nil || item != nil) && ui.state == UIInventory {
+					ui.draw(newLevel)
+					ui.drawInventory(newLevel)
+					if item != nil {
+						ui.displayPopupItem(item, e.X, e.Y)
+					}
+				} else if ui.state == UIInventory {
 					ui.draw(newLevel)
 					ui.drawInventory(newLevel)
 				}
@@ -674,7 +685,7 @@ func (ui *ui) Run() {
 						item := ui.clickValidItem(newLevel, e.X, e.Y)
 						if item != nil {
 							switch item.Type {
-							case game.Potion:
+							case game.Potions:
 								ui.inputChan <- &game.Input{Typ: game.Action, Item: item}
 							case game.Weapons, game.Armors:
 								ui.inputChan <- &game.Input{Typ: game.Equip, Item: item}

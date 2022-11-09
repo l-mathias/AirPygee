@@ -1,5 +1,7 @@
 package ui2d
 
+// TODO - implements adjustable volume
+
 import (
 	"AirPygee/game"
 	"github.com/veandco/go-sdl2/mix"
@@ -96,7 +98,7 @@ func (ui *ui) displayMenu() {
 	}
 
 	buttonStandard := ui.getRectFromTextureName("buttonLong_brown.png")
-	buttonHighlighted := ui.getRectFromTextureName("buttonLong_blue.png")
+	buttonHighlighted := ui.getRectFromTextureName("buttonLong_grey.png")
 
 	for _, b := range ui.menuButtons {
 		var button *sdl.Rect

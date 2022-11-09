@@ -6,8 +6,35 @@ import (
 	"strconv"
 )
 
-// displayStats draws general UI with remaining hit points and game instructions
+// displayStats is displaying player stats
 func (ui *ui) displayStats(level *game.Level) {
+
+	statsPanel := ui.getRectFromTextureName("panel_brown.png")
+	statsPanelOffsetY := int32(float64(ui.winHeight) * 0.10)
+	if err := ui.renderer.Copy(ui.uipack, statsPanel, &sdl.Rect{X: 0, Y: statsPanelOffsetY, W: int32(float64(ui.winWidth) * 0.20), H: int32(float64(ui.winHeight) * 0.30)}); err != nil {
+		panic(err)
+	}
+
+	// Drawing Health count
+	tex := ui.stringToTexture("Life "+strconv.Itoa(level.Player.Health), sdl.Color{R: 139, G: 69, B: 19}, FontMedium)
+	_, _, w, h, _ := tex.Query()
+	err := ui.renderer.Copy(tex, nil, &sdl.Rect{X: int32(float64(statsPanel.W) * .10), Y: statsPanelOffsetY + int32(float64(statsPanel.H)*.05), W: w, H: h})
+	if err != nil {
+		panic(err)
+	}
+
+	// Drawing Strength count
+	tex = ui.stringToTexture("Strength "+strconv.Itoa(level.Player.Strength), sdl.Color{R: 139, G: 69, B: 19}, FontMedium)
+	_, _, w, h, _ = tex.Query()
+	err = ui.renderer.Copy(tex, nil, &sdl.Rect{X: int32(float64(statsPanel.W) * .10), Y: statsPanelOffsetY + int32(float64(statsPanel.H)*.25), W: w, H: h})
+	if err != nil {
+		panic(err)
+	}
+
+}
+
+// displayHUD draws general UI with remaining hit points and game instructions
+func (ui *ui) displayHUD(level *game.Level) {
 	firstFrameX := 512
 	for i := 0; i < 4; i++ {
 		if err := ui.renderer.Copy(ui.tileMap, &sdl.Rect{X: int32(firstFrameX + i*16), Y: 68, W: 16, H: 16}, &sdl.Rect{X: int32(i * 32), Y: 0, W: tileSize, H: tileSize}); err != nil {
@@ -19,19 +46,6 @@ func (ui *ui) displayStats(level *game.Level) {
 	tex := ui.stringToTexture("Move", sdl.Color{R: 255}, FontSmall)
 	_, _, w, h, _ := tex.Query()
 	err := ui.renderer.Copy(tex, nil, &sdl.Rect{X: 144, Y: 8, W: w, H: h})
-	if err != nil {
-		panic(err)
-	}
-
-	// Life symbol
-	if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: tileSize, Y: 0, W: tileSize, H: tileSize}, &sdl.Rect{Y: int32(ui.winHeight / 2), W: tileSize, H: tileSize}); err != nil {
-		panic(err)
-	}
-
-	// Drawing Hit points count
-	tex = ui.stringToTexture("Life "+strconv.Itoa(level.Player.Health), sdl.Color{R: 255}, FontMedium)
-	_, _, w, h, _ = tex.Query()
-	err = ui.renderer.Copy(tex, nil, &sdl.Rect{X: tileSize, Y: int32(ui.winHeight / 2), W: w, H: h})
 	if err != nil {
 		panic(err)
 	}
@@ -48,6 +62,21 @@ func (ui *ui) displayStats(level *game.Level) {
 		panic(err)
 	}
 
+}
+
+func (ui *ui) displayPopupItem(item *game.Item, mouseX, mouseY int32) {
+	ui.popup = ui.getSinglePixel(sdl.Color{0, 0, 0, 128})
+	ui.popup.SetBlendMode(sdl.BLENDMODE_BLEND)
+	//textStart := int32(float64(ui.winHeight) * .68)
+	popupWidth := int32(float64(ui.winWidth) * .25)
+	popupHeight := int32(float64(ui.winHeight) * .25)
+
+	ui.renderer.Copy(ui.popup, nil, &sdl.Rect{mouseX, mouseY, popupWidth, popupHeight})
+
+	// display item description
+	tex := ui.stringToTexture("Description: "+item.Description, sdl.Color{255, 0, 0, 0}, FontSmall)
+	_, _, w, h, _ := tex.Query()
+	ui.renderer.Copy(tex, nil, &sdl.Rect{mouseX, mouseY + int32(float64(popupHeight)*.85), w, h})
 }
 
 // displayMonsters displays monsters on map

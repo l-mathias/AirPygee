@@ -17,15 +17,16 @@ type ItemType int
 const (
 	Armors ItemType = iota
 	Weapons
-	Potion
+	Potions
 )
 
 type Item struct {
 	Entity
 	Location
-	Type     ItemType
-	Equipped bool
-	Size     string
+	Type        ItemType
+	Size        string
+	Equipped    bool
+	Description string
 }
 
 func NewSword(p Pos) *Item {
@@ -33,7 +34,7 @@ func NewSword(p Pos) *Item {
 		Pos:  p,
 		Name: "Sword",
 		Rune: 's',
-	}, Location: RightHand, Equipped: false, Type: Weapons}
+	}, Location: RightHand, Equipped: false, Type: Weapons, Description: "A common sword..."}
 }
 
 func NewHelmet(p Pos) *Item {
@@ -41,7 +42,7 @@ func NewHelmet(p Pos) *Item {
 		Pos:  p,
 		Name: "Helmet",
 		Rune: 'h',
-	}, Location: Head, Equipped: false, Type: Armors}
+	}, Location: Head, Equipped: false, Type: Armors, Description: "A basic helmet..."}
 }
 
 func NewHealthPotion(p Pos, size string) *Item {
@@ -49,7 +50,7 @@ func NewHealthPotion(p Pos, size string) *Item {
 		Pos:  p,
 		Name: "Potion",
 		Rune: 'p',
-	}, Location: NoLoc, Equipped: false, Type: Potion, Size: size}
+	}, Location: NoLoc, Equipped: false, Type: Potions, Size: size, Description: "A " + size + " health potion"}
 }
 
 func (game *Game) consumePotion(item *Item) {
@@ -61,7 +62,7 @@ func (game *Game) consumePotion(item *Item) {
 	case "Large":
 		game.heal(int(float64(game.CurrentLevel.Player.MaxHealth) * .75))
 	}
-	game.removeInventoryItem(item, &game.CurrentLevel.Player.Character)
+	game.removeInventoryItem(interface{}(item).(*Item), &game.CurrentLevel.Player.Character)
 	game.CurrentLevel.AddEvent(game.CurrentLevel.Player.Character.Name + " consumed " + item.Size + item.Name)
 	game.CurrentLevel.LastEvent = ConsumePotion
 }
@@ -69,9 +70,10 @@ func (game *Game) consumePotion(item *Item) {
 func (game *Game) equip(itemToEquip *Item) {
 	if game.slotFreeToEquip(itemToEquip) {
 		itemToEquip.Equipped = true
+
 		game.CurrentLevel.Player.EquippedItems = append(game.CurrentLevel.Player.EquippedItems, itemToEquip)
 		for i, item := range game.CurrentLevel.Player.Items {
-			if item == itemToEquip {
+			if item == interface{}(itemToEquip).(*Item) {
 				game.CurrentLevel.Player.Items = append(game.CurrentLevel.Player.Items[:i], game.CurrentLevel.Player.Items[i+1:]...)
 			}
 		}
