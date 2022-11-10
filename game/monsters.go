@@ -1,28 +1,71 @@
 package game
 
+import (
+	"math/rand"
+	"time"
+)
+
 type Monster struct {
 	Character
 }
 
+func randomizeLoot() *[]Item {
+	items := make([]Item, 0)
+	numItems := 0
+
+	rand.Seed(time.Now().UnixNano())
+	number := rand.Intn(100)
+
+	switch {
+	case number <= 2:
+		numItems = 4
+	case number > 2 && number <= 10:
+		numItems = 3
+	case number > 10 && number <= 20:
+		numItems = 2
+	case number > 20 && number <= 40:
+		numItems = 1
+	case number > 40 && number <= 100:
+		numItems = 0
+	}
+
+	for i := 0; i < numItems; i++ {
+		rand.Seed(time.Now().UnixNano())
+		switch rand.Intn(2) {
+		case 0:
+			items = append(items, NewSword(Pos{}))
+		case 1:
+			items = append(items, NewHelmet(Pos{}))
+		case 2:
+			items = append(items, NewHealthPotion(Pos{}, "Small"))
+		}
+	}
+	return &items
+}
+
 func NewRat(p Pos) *Monster {
+	items := randomizeLoot()
 	return &Monster{Character{
 		Entity:       Entity{Pos: p, Name: "Rat", Rune: 'R'},
 		Health:       5,
 		MaxHealth:    5,
-		Strength:     1,
+		Damage:       1,
 		Speed:        2.0,
 		ActionPoints: 0.0,
+		Items:        *items,
 	}}
 }
 
 func NewSpider(p Pos) *Monster {
+	items := randomizeLoot()
 	return &Monster{Character{
 		Entity:       Entity{Pos: p, Name: "Spider", Rune: 'S'},
 		Health:       10,
 		MaxHealth:    10,
-		Strength:     2,
+		Damage:       2,
 		Speed:        1.0,
 		ActionPoints: 0.0,
+		Items:        *items,
 	}}
 }
 

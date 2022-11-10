@@ -98,7 +98,7 @@ type Character struct {
 	Entity
 	Health        int
 	MaxHealth     int
-	Strength      int
+	Damage        int
 	Speed         float64
 	ActionPoints  float64
 	SightRange    int
@@ -152,7 +152,7 @@ func (level *Level) MoveItem(itemToMove Item, character *Character) {
 
 func (level *Level) Attack(c1, c2 *Character) {
 	c1.ActionPoints--
-	c1AttackPower := c1.Strength
+	c1AttackPower := c1.Damage
 	c2.Health -= c1AttackPower
 
 	if c2.Health > 0 {

@@ -25,7 +25,7 @@ func (ui *ui) displayStats(level *game.Level) {
 	}
 
 	// Drawing Strength count
-	tex = ui.stringToTexture("Strength "+strconv.Itoa(level.Player.Strength), sdl.Color{R: 139, G: 69, B: 19}, FontMedium)
+	tex = ui.stringToTexture("Damage "+strconv.Itoa(level.Player.Damage), sdl.Color{R: 139, G: 69, B: 19}, FontMedium)
 	_, _, w, h, _ = tex.Query()
 	err = ui.renderer.Copy(tex, nil, &sdl.Rect{X: int32(float64(statsPanel.W) * .10), Y: statsPanelOffsetY + int32(float64(statsPanel.H)*.25), W: w, H: h})
 	if err != nil {
@@ -114,7 +114,7 @@ func (ui *ui) displayPopupItem(item game.Item, mouseX, mouseY int32) {
 		_, _, w, h, _ := tex.Query()
 		ui.renderer.Copy(tex, nil, &sdl.Rect{X: mouseX - (popupWidth / 2) - (w / 2), Y: mouseY + int32(float64(popupHeight)*.05), W: w, H: h})
 
-		tex = ui.stringToTexture(fmt.Sprintf("Strength: %d - %d", item.(game.EquipableItem).GetStats().MinStrength, item.(game.EquipableItem).GetStats().MaxStrength), color, FontSmall)
+		tex = ui.stringToTexture(fmt.Sprintf("Damage: %d - %d", item.(game.EquipableItem).GetStats().MinDamage, item.(game.EquipableItem).GetStats().MaxDamage), color, FontSmall)
 		_, _, w, h, _ = tex.Query()
 		ui.renderer.Copy(tex, nil, &sdl.Rect{X: mouseX - popupWidth, Y: mouseY + int32(float64(popupHeight)*.45), W: w, H: h})
 
