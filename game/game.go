@@ -92,6 +92,7 @@ type Entity struct {
 	Location
 	Type        ItemType
 	Description string
+	Rarity
 }
 
 type Character struct {
@@ -443,10 +444,10 @@ func (game *Game) handleInput(input *Input) {
 	case TakeItem:
 		game.pickup(input.Item)
 	case Equip:
-		if input.Item.(EquippableItem).IsEquipped() {
-			game.unEquip(input.Item.(EquippableItem))
+		if input.Item.(EquipableItem).IsEquipped() {
+			game.unEquip(input.Item.(EquipableItem))
 		} else {
-			game.equip(input.Item.(EquippableItem))
+			game.equip(input.Item.(EquipableItem))
 		}
 	case Drop:
 		game.dropItem(input.Item, &game.CurrentLevel.Player.Character)

@@ -24,8 +24,6 @@ func (ui *ui) LoadPlayer() {
 	}
 
 	_, _, imageWidth, imageHeight, _ := ui.pTexture.Query()
-	//	imageWidth /= 4
-	//	imageHeight /= 2
 	ui.pWidthTex = imageWidth / ui.pFramesX
 	ui.pHeightTex = imageHeight / ui.pFramesY
 }
@@ -52,7 +50,7 @@ func (ui *ui) drawPlayer(level *game.Level) {
 	ui.pFromX = ui.pCurrentFrame * ui.pWidthTex
 
 	ui.pSrc = sdl.Rect{X: ui.pFromX, Y: ui.pFromY, W: ui.pWidthTex, H: ui.pHeightTex}
-	ui.pDest = sdl.Rect{X: int32(p.X)*tileSize + ui.offsetX - ((ui.pWidthTex - tileSize) / 2), Y: int32(p.Y)*tileSize + ui.offsetY - ((ui.pHeightTex - tileSize) / 2), W: ui.pWidthTex, H: ui.pHeightTex}
+	ui.pDest = sdl.Rect{X: int32(p.X)*tileSize + ui.offsetX - (int32(float64(ui.pWidthTex)*1.25) - tileSize), Y: int32(p.Y)*tileSize + ui.offsetY - (int32(float64(ui.pHeightTex)*1.25) - tileSize), W: int32(float64(ui.pWidthTex) * 1.25), H: int32(float64(ui.pHeightTex) * 1.25)}
 
 	err := ui.renderer.Copy(ui.pTexture, &ui.pSrc, &ui.pDest)
 	if err != nil {

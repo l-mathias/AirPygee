@@ -2,6 +2,7 @@ package ui2d
 
 import (
 	"AirPygee/game"
+	"fmt"
 	"github.com/veandco/go-sdl2/sdl"
 	"strconv"
 )
@@ -65,18 +66,78 @@ func (ui *ui) displayHUD(level *game.Level) {
 }
 
 func (ui *ui) displayPopupItem(item game.Item, mouseX, mouseY int32) {
-	ui.popup = ui.getSinglePixel(sdl.Color{0, 0, 0, 128})
-	ui.popup.SetBlendMode(sdl.BLENDMODE_BLEND)
-	//textStart := int32(float64(ui.winHeight) * .68)
+	popup := ui.getSinglePixel(sdl.Color{A: 128})
+	popup.SetBlendMode(sdl.BLENDMODE_BLEND)
+
 	popupWidth := int32(float64(ui.winWidth) * .25)
 	popupHeight := int32(float64(ui.winHeight) * .25)
+	var tex *sdl.Texture
+	var color sdl.Color
+	var rarity string
 
-	ui.renderer.Copy(ui.popup, nil, &sdl.Rect{mouseX, mouseY, popupWidth, popupHeight})
+	switch item.GetEntity().Rarity {
+	case game.Common:
+		color = sdl.Color{R: 225, G: 225, B: 225}
+		rarity = "Common"
+	case game.Uncommon:
+		color = sdl.Color{R: 0, G: 225, B: 0}
+		rarity = "Uncommon"
+	case game.Rare:
+		color = sdl.Color{R: 0, G: 0, B: 225}
+		rarity = "Rare"
+	case game.Epic:
+		color = sdl.Color{R: 225, G: 0, B: 225}
+		rarity = "Epic"
+	case game.Legendary:
+		color = sdl.Color{R: 225, G: 225, B: 0}
+		rarity = "Legendary"
+	}
+
+	ui.renderer.Copy(popup, nil, &sdl.Rect{X: mouseX - popupWidth, Y: mouseY, W: popupWidth, H: popupHeight})
+
+	// display item specific
+	switch item.GetEntity().Type {
+	case game.Potions:
+		// display item Name
+		tex = ui.stringToTexture(item.GetName(), color, FontMedium)
+		_, _, w, h, _ := tex.Query()
+		ui.renderer.Copy(tex, nil, &sdl.Rect{X: mouseX - (popupWidth / 2) - (w / 2), Y: mouseY + int32(float64(popupHeight)*.05), W: w, H: h})
+
+		tex = ui.stringToTexture("Size: "+item.(game.ConsumableItem).GetSize(), color, FontSmall)
+		_, _, w, h, _ = tex.Query()
+		ui.renderer.Copy(tex, nil, &sdl.Rect{X: mouseX - popupWidth, Y: mouseY + int32(float64(popupHeight)*.65), W: w, H: h})
+
+	case game.Weapons, game.Armors:
+		// display item Name
+		tex = ui.stringToTexture(item.GetName(), color, FontMedium)
+		_, _, w, h, _ := tex.Query()
+		ui.renderer.Copy(tex, nil, &sdl.Rect{X: mouseX - (popupWidth / 2) - (w / 2), Y: mouseY + int32(float64(popupHeight)*.05), W: w, H: h})
+
+		tex = ui.stringToTexture(fmt.Sprintf("Strength: %d", item.(game.EquipableItem).GetStats().Strength), color, FontSmall)
+		_, _, w, h, _ = tex.Query()
+		ui.renderer.Copy(tex, nil, &sdl.Rect{X: mouseX - popupWidth, Y: mouseY + int32(float64(popupHeight)*.45), W: w, H: h})
+
+		tex = ui.stringToTexture(fmt.Sprintf("Defense: %d", item.(game.EquipableItem).GetStats().Defense), color, FontSmall)
+		_, _, w, h, _ = tex.Query()
+		ui.renderer.Copy(tex, nil, &sdl.Rect{X: mouseX - popupWidth, Y: mouseY + int32(float64(popupHeight)*.55), W: w, H: h})
+
+		fmt.Println(color)
+		tex = ui.stringToTexture(fmt.Sprintf("Critical: %.2f %%", item.(game.EquipableItem).GetCritical()), color, FontSmall)
+		_, _, w, h, _ = tex.Query()
+		ui.renderer.Copy(tex, nil, &sdl.Rect{X: mouseX - popupWidth, Y: mouseY + int32(float64(popupHeight)*.65), W: w, H: h})
+
+	}
+
+	// display item rarity
+	tex = ui.stringToTexture("Rarity: "+rarity, color, FontSmall)
+	_, _, w, h, _ := tex.Query()
+	ui.renderer.Copy(tex, nil, &sdl.Rect{X: mouseX - popupWidth, Y: mouseY + int32(float64(popupHeight)*.75), W: w, H: h})
 
 	// display item description
-	tex := ui.stringToTexture("Description: "+item.GetDescription(), sdl.Color{255, 0, 0, 0}, FontSmall)
-	_, _, w, h, _ := tex.Query()
-	ui.renderer.Copy(tex, nil, &sdl.Rect{mouseX, mouseY + int32(float64(popupHeight)*.85), w, h})
+	tex = ui.stringToTexture("Description: "+item.GetDescription(), color, FontSmall)
+	_, _, w, h, _ = tex.Query()
+	ui.renderer.Copy(tex, nil, &sdl.Rect{X: mouseX - popupWidth, Y: mouseY + int32(float64(popupHeight)*.85), W: w, H: h})
+
 }
 
 // displayMonsters displays monsters on map
@@ -87,13 +148,13 @@ func (ui *ui) displayMonsters(level *game.Level) {
 	for pos, monster := range level.Monsters {
 		if level.Map[pos.Y][pos.X].Visible {
 
-			if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 928, Y: 1600, W: tileSize, H: tileSize}, &sdl.Rect{X: int32(level.Monsters[pos].X)*tileSize + ui.offsetX, Y: int32((level.Monsters[pos].Y-1))*tileSize + ui.offsetY + 20, W: tileSize, H: 5}); err != nil {
+			if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 928, Y: 1600, W: tileSize, H: tileSize}, &sdl.Rect{X: int32(level.Monsters[pos].X)*tileSize + ui.offsetX, Y: int32(level.Monsters[pos].Y-1)*tileSize + ui.offsetY + 20, W: tileSize, H: 5}); err != nil {
 				panic(err)
 			}
 			var gauge float64
 			gauge = float64(level.Monsters[pos].Health) / float64(level.Monsters[pos].MaxHealth)
 
-			if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 1024, Y: 1600, W: tileSize, H: tileSize}, &sdl.Rect{X: int32(level.Monsters[pos].X)*tileSize + ui.offsetX, Y: int32((level.Monsters[pos].Y-1))*tileSize + ui.offsetY + 20, W: tileSize * int32(gauge), H: 5}); err != nil {
+			if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 1024, Y: 1600, W: tileSize, H: tileSize}, &sdl.Rect{X: int32(level.Monsters[pos].X)*tileSize + ui.offsetX, Y: int32(level.Monsters[pos].Y-1)*tileSize + ui.offsetY + 20, W: tileSize * int32(gauge), H: 5}); err != nil {
 				panic(err)
 			}
 

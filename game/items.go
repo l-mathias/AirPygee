@@ -13,6 +13,7 @@ const (
 )
 
 type ItemType int
+type Rarity int
 
 const (
 	Armors ItemType = iota
@@ -20,28 +21,29 @@ const (
 	Potions
 )
 
-//type Item struct {
-//	Entity
-//	Location
-//	Type        ItemType
-//	Size        string
-//	Equipped    bool
-//	Description string
-//}
+const (
+	Common Rarity = iota
+	Uncommon
+	Rare
+	Epic
+	Legendary
+)
 
 type Item interface {
 	GetDescription() string
 	GetName() string
 	GetRune() rune
-	GetEntity() Entity
+	GetEntity() *Entity
 	SetPos(Pos)
 }
 
-type EquippableItem interface {
+type EquipableItem interface {
 	Item
 	IsEquipped() bool
 	Equip()
 	UnEquip()
+	GetStats() *EquipableItemStats
+	GetCritical() float64
 }
 
 type ConsumableItem interface {
@@ -49,9 +51,16 @@ type ConsumableItem interface {
 	GetSize() string
 }
 
+type EquipableItemStats struct {
+	Strength int
+	Defense  int
+}
+
 type Weapon struct {
 	Entity
-	Strength int
+	EquipableItemStats
+
+	Critical float64
 	Equipped bool
 }
 
@@ -77,16 +86,25 @@ func (w *Weapon) Equip() {
 func (w *Weapon) UnEquip() {
 	w.Equipped = false
 }
-func (w *Weapon) GetEntity() Entity {
-	return w.Entity
+func (w *Weapon) GetEntity() *Entity {
+	return &w.Entity
 }
 func (w *Weapon) SetPos(pos Pos) {
 	w.Pos = pos
 }
 
+func (w *Weapon) GetCritical() float64 {
+	return w.Critical
+}
+
+func (w *Weapon) GetStats() *EquipableItemStats {
+	return &w.EquipableItemStats
+}
+
 type Armor struct {
 	Entity
-	Defense  int
+	EquipableItemStats
+	Critical float64
 	Equipped bool
 }
 
@@ -112,11 +130,19 @@ func (a *Armor) Equip() {
 func (a *Armor) UnEquip() {
 	a.Equipped = false
 }
-func (a *Armor) GetEntity() Entity {
-	return a.Entity
+func (a *Armor) GetEntity() *Entity {
+	return &a.Entity
 }
 func (a *Armor) SetPos(pos Pos) {
 	a.Pos = pos
+}
+
+func (a *Armor) GetCritical() float64 {
+	return a.Critical
+}
+
+func (a *Armor) GetStats() *EquipableItemStats {
+	return &a.EquipableItemStats
 }
 
 type Potion struct {
@@ -133,8 +159,8 @@ func (p *Potion) GetName() string {
 func (p *Potion) GetRune() rune {
 	return p.Rune
 }
-func (p *Potion) GetEntity() Entity {
-	return p.Entity
+func (p *Potion) GetEntity() *Entity {
+	return &p.Entity
 }
 func (p *Potion) SetPos(pos Pos) {
 	p.Pos = pos
@@ -152,8 +178,14 @@ func NewSword(p Pos) *Sword {
 			Type:        Weapons,
 			Description: "A common sword...",
 			Location:    RightHand,
-		}, Strength: 5},
-	}
+			Rarity:      Rare,
+		},
+			Critical: 0,
+			EquipableItemStats: EquipableItemStats{
+				Strength: 5,
+				Defense:  0,
+			},
+		}}
 }
 
 func NewHelmet(p Pos) *Helmet {
@@ -163,10 +195,15 @@ func NewHelmet(p Pos) *Helmet {
 			Name:        "Helmet",
 			Rune:        'h',
 			Type:        Armors,
-			Description: "A common Helmet...",
+			Description: "A common helmet...",
 			Location:    Head,
+			Rarity:      Uncommon,
 		},
-		Defense: 5,
+		Critical: float64(0),
+		EquipableItemStats: EquipableItemStats{
+			Strength: 0,
+			Defense:  5,
+		},
 	}}
 }
 
@@ -180,33 +217,9 @@ func NewHealthPotion(p Pos, size string) *Potion {
 			Type:        Potions,
 			Description: "A small health potion...",
 		},
-		Size: "Small",
+		Size: size,
 	}
 }
-
-//func NewSword(p Pos) *Item {
-//	return &Item{Entity: Entity{
-//		Pos:  p,
-//		Name: "Sword",
-//		Rune: 's',
-//	}, Location: RightHand, Equipped: false, Type: Weapons, Description: "A common sword..."}
-//}
-//
-//func NewHelmet(p Pos) *Item {
-//	return &Item{Entity: Entity{
-//		Pos:  p,
-//		Name: "Helmet",
-//		Rune: 'h',
-//	}, Location: Head, Equipped: false, Type: Armors, Description: "A basic helmet..."}
-//}
-
-//func NewHealthPotion(p Pos, size string) *Item {
-//	return &Item{Entity: Entity{
-//		Pos:  p,
-//		Name: "Potion",
-//		Rune: 'p',
-//	}, Location: NoLoc, Equipped: false, Type: Potions, Size: size, Description: "A " + size + " health potion"}
-//}
 
 func (game *Game) consumePotion(item ConsumableItem) {
 	switch item.GetSize() {
@@ -222,7 +235,7 @@ func (game *Game) consumePotion(item ConsumableItem) {
 	game.CurrentLevel.LastEvent = ConsumePotion
 }
 
-func (game *Game) equip(itemToEquip EquippableItem) {
+func (game *Game) equip(itemToEquip EquipableItem) {
 
 	if game.slotFreeToEquip(itemToEquip) {
 		itemToEquip.Equip()
@@ -235,7 +248,7 @@ func (game *Game) equip(itemToEquip EquippableItem) {
 	}
 }
 
-func (game *Game) unEquip(itemToUnEquip EquippableItem) {
+func (game *Game) unEquip(itemToUnEquip EquipableItem) {
 	itemToUnEquip.UnEquip()
 	game.CurrentLevel.Player.Items = append(game.CurrentLevel.Player.Items, itemToUnEquip)
 	for i, item := range game.CurrentLevel.Player.EquippedItems {

@@ -93,9 +93,6 @@ type ui struct {
 	pSrc                                              sdl.Rect
 	pDest                                             sdl.Rect
 
-	// popup menu
-	popup *sdl.Texture
-
 	// UI Theme
 	uipack       *sdl.Texture
 	texturesList SubTextures
@@ -310,21 +307,21 @@ func (ui *ui) stringToTexture(s string, color sdl.Color, size FontSize) *sdl.Tex
 	}
 	defer fontSurface.Free()
 
-	fontTexture, err := ui.renderer.CreateTextureFromSurface(fontSurface)
+	tex, err := ui.renderer.CreateTextureFromSurface(fontSurface)
 	if err != nil {
 		panic(err)
 	}
 
 	switch size {
 	case FontSmall:
-		ui.str2TexSmall[s] = fontTexture
+		ui.str2TexSmall[s] = tex
 	case FontMedium:
-		ui.str2TexMedium[s] = fontTexture
+		ui.str2TexMedium[s] = tex
 	case FontLarge:
-		ui.str2TexLarge[s] = fontTexture
+		ui.str2TexLarge[s] = tex
 	}
 
-	return fontTexture
+	return tex
 }
 
 func (ui *ui) loadTextureIndex() {
@@ -633,7 +630,7 @@ func (ui *ui) Run() {
 				if (ui.draggedItem != nil || item != nil) && ui.state == UIInventory {
 					ui.draw(newLevel)
 					ui.drawInventory(newLevel)
-					if item != nil {
+					if item != nil && ui.draggedItem == nil {
 						ui.displayPopupItem(item, e.X, e.Y)
 					}
 				} else if ui.state == UIInventory {
