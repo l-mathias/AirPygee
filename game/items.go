@@ -1,5 +1,10 @@
 package game
 
+import (
+	"math/rand"
+	"time"
+)
+
 type Location int
 
 const (
@@ -43,7 +48,6 @@ type EquipableItem interface {
 	Equip()
 	UnEquip()
 	GetStats() *EquipableItemStats
-	GetCritical() float64
 	GetRarity() Rarity
 }
 
@@ -55,12 +59,12 @@ type ConsumableItem interface {
 type EquipableItemStats struct {
 	Strength int
 	Defense  int
+	Critical float64
 }
 
 type Weapon struct {
 	Entity
 	EquipableItemStats
-	Critical float64
 	Equipped bool
 	Rarity
 }
@@ -96,11 +100,6 @@ func (w *Weapon) SetPos(pos Pos) {
 func (w *Weapon) GetRarity() Rarity {
 	return w.Rarity
 }
-
-func (w *Weapon) GetCritical() float64 {
-	return w.Critical
-}
-
 func (w *Weapon) GetStats() *EquipableItemStats {
 	return &w.EquipableItemStats
 }
@@ -108,7 +107,6 @@ func (w *Weapon) GetStats() *EquipableItemStats {
 type Armor struct {
 	Entity
 	EquipableItemStats
-	Critical float64
 	Equipped bool
 	Rarity
 }
@@ -144,11 +142,6 @@ func (a *Armor) SetPos(pos Pos) {
 func (a *Armor) GetRarity() Rarity {
 	return a.Rarity
 }
-
-func (a *Armor) GetCritical() float64 {
-	return a.Critical
-}
-
 func (a *Armor) GetStats() *EquipableItemStats {
 	return &a.EquipableItemStats
 }
@@ -177,7 +170,55 @@ func (p *Potion) GetSize() string {
 	return p.Size
 }
 
+func randomizeStats(rarity Rarity, stats *EquipableItemStats) *EquipableItemStats {
+	var multiplier float64
+
+	switch rarity {
+	case Common:
+		multiplier = 1
+	case Uncommon:
+		multiplier = 1.5
+	case Rare:
+		multiplier = 1.75
+	case Epic:
+		multiplier = 2
+	case Legendary:
+		multiplier = 3
+	}
+
+	stats.Critical *= multiplier
+	stats.Strength = int(float64(stats.Strength) * multiplier)
+	stats.Defense = int(float64(stats.Defense) * multiplier)
+	return stats
+}
+
+func randomizeRarity() Rarity {
+	rand.Seed(time.Now().UnixNano())
+	number := rand.Intn(100)
+
+	switch {
+	case number <= 2:
+		return Legendary
+	case number > 2 && number <= 10:
+		return Epic
+	case number > 10 && number <= 20:
+		return Rare
+	case number > 20 && number <= 40:
+		return Uncommon
+	case number > 40 && number <= 100:
+		return Common
+	}
+
+	return Common
+}
+
 func NewSword(p Pos) *Sword {
+	rarity := randomizeRarity()
+	stats := randomizeStats(rarity, &EquipableItemStats{
+		Strength: 10,
+		Defense:  0,
+		Critical: 0,
+	})
 	return &Sword{
 		Weapon: Weapon{Entity: Entity{
 			Pos:         p,
@@ -187,16 +228,18 @@ func NewSword(p Pos) *Sword {
 			Description: "A common sword...",
 			Location:    RightHand,
 		},
-			Rarity:   Rare,
-			Critical: 0,
-			EquipableItemStats: EquipableItemStats{
-				Strength: 5,
-				Defense:  0,
-			},
+			Rarity:             rarity,
+			EquipableItemStats: *stats,
 		}}
 }
 
 func NewHelmet(p Pos) *Helmet {
+	rarity := randomizeRarity()
+	stats := randomizeStats(rarity, &EquipableItemStats{
+		Strength: 0,
+		Defense:  10,
+		Critical: 0,
+	})
 	return &Helmet{Armor: Armor{
 		Entity: Entity{
 			Pos:         p,
@@ -206,12 +249,8 @@ func NewHelmet(p Pos) *Helmet {
 			Description: "A common helmet...",
 			Location:    Head,
 		},
-		Rarity:   Uncommon,
-		Critical: float64(0),
-		EquipableItemStats: EquipableItemStats{
-			Strength: 0,
-			Defense:  5,
-		},
+		Rarity:             rarity,
+		EquipableItemStats: *stats,
 	}}
 }
 

@@ -117,7 +117,7 @@ func (ui *ui) displayPopupItem(item game.Item, mouseX, mouseY int32) {
 		_, _, w, h, _ = tex.Query()
 		ui.renderer.Copy(tex, nil, &sdl.Rect{X: mouseX - popupWidth, Y: mouseY + int32(float64(popupHeight)*.55), W: w, H: h})
 
-		tex = ui.stringToTexture(fmt.Sprintf("Critical: %.2f %%", item.(game.EquipableItem).GetCritical()), color, FontSmall)
+		tex = ui.stringToTexture(fmt.Sprintf("Critical: %.2f %%", item.(game.EquipableItem).GetStats().Critical), color, FontSmall)
 		_, _, w, h, _ = tex.Query()
 		ui.renderer.Copy(tex, nil, &sdl.Rect{X: mouseX - popupWidth, Y: mouseY + int32(float64(popupHeight)*.65), W: w, H: h})
 
