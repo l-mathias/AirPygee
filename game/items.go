@@ -57,9 +57,12 @@ type ConsumableItem interface {
 }
 
 type EquipableItemStats struct {
-	Strength int
-	Defense  int
-	Critical float64
+	MinStrength int
+	MaxStrength int
+	MinDefense  int
+	MaxDefense  int
+	MinCritical float64
+	MaxCritical float64
 }
 
 type Weapon struct {
@@ -186,9 +189,12 @@ func randomizeStats(rarity Rarity, stats *EquipableItemStats) *EquipableItemStat
 		multiplier = 3
 	}
 
-	stats.Critical *= multiplier
-	stats.Strength = int(float64(stats.Strength) * multiplier)
-	stats.Defense = int(float64(stats.Defense) * multiplier)
+	stats.MinCritical *= multiplier
+	stats.MaxCritical *= multiplier
+	stats.MinStrength = int(float64(stats.MinStrength) * multiplier)
+	stats.MaxStrength = int(float64(stats.MaxStrength) * multiplier)
+	stats.MinDefense = int(float64(stats.MinDefense) * multiplier)
+	stats.MaxDefense = int(float64(stats.MaxDefense) * multiplier)
 	return stats
 }
 
@@ -215,9 +221,12 @@ func randomizeRarity() Rarity {
 func NewSword(p Pos) *Sword {
 	rarity := randomizeRarity()
 	stats := randomizeStats(rarity, &EquipableItemStats{
-		Strength: 10,
-		Defense:  0,
-		Critical: 0,
+		MinStrength: 5,
+		MaxStrength: 10,
+		MinDefense:  0,
+		MaxDefense:  0,
+		MinCritical: 0,
+		MaxCritical: 0,
 	})
 	return &Sword{
 		Weapon: Weapon{Entity: Entity{
@@ -236,9 +245,12 @@ func NewSword(p Pos) *Sword {
 func NewHelmet(p Pos) *Helmet {
 	rarity := randomizeRarity()
 	stats := randomizeStats(rarity, &EquipableItemStats{
-		Strength: 0,
-		Defense:  10,
-		Critical: 0,
+		MinStrength: 0,
+		MaxStrength: 0,
+		MinDefense:  5,
+		MaxDefense:  10,
+		MinCritical: 0,
+		MaxCritical: 0,
 	})
 	return &Helmet{Armor: Armor{
 		Entity: Entity{

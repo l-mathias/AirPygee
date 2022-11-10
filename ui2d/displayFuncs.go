@@ -109,15 +109,15 @@ func (ui *ui) displayPopupItem(item game.Item, mouseX, mouseY int32) {
 		ui.renderer.Copy(texPotion, nil, &sdl.Rect{X: mouseX - popupWidth, Y: mouseY + int32(float64(popupHeight)*.65), W: w, H: h})
 
 	case game.Weapons, game.Armors:
-		tex = ui.stringToTexture(fmt.Sprintf("Strength: %d", item.(game.EquipableItem).GetStats().Strength), color, FontSmall)
+		tex = ui.stringToTexture(fmt.Sprintf("Strength: %d - %d", item.(game.EquipableItem).GetStats().MinStrength, item.(game.EquipableItem).GetStats().MaxStrength), color, FontSmall)
 		_, _, w, h, _ = tex.Query()
 		ui.renderer.Copy(tex, nil, &sdl.Rect{X: mouseX - popupWidth, Y: mouseY + int32(float64(popupHeight)*.45), W: w, H: h})
 
-		tex = ui.stringToTexture(fmt.Sprintf("Defense: %d", item.(game.EquipableItem).GetStats().Defense), color, FontSmall)
+		tex = ui.stringToTexture(fmt.Sprintf("Defense: %d - %d", item.(game.EquipableItem).GetStats().MinDefense, item.(game.EquipableItem).GetStats().MaxDefense), color, FontSmall)
 		_, _, w, h, _ = tex.Query()
 		ui.renderer.Copy(tex, nil, &sdl.Rect{X: mouseX - popupWidth, Y: mouseY + int32(float64(popupHeight)*.55), W: w, H: h})
 
-		tex = ui.stringToTexture(fmt.Sprintf("Critical: %.2f %%", item.(game.EquipableItem).GetStats().Critical), color, FontSmall)
+		tex = ui.stringToTexture(fmt.Sprintf("Critical: %.2f %% - %.2f %%", item.(game.EquipableItem).GetStats().MinCritical, item.(game.EquipableItem).GetStats().MaxCritical), color, FontSmall)
 		_, _, w, h, _ = tex.Query()
 		ui.renderer.Copy(tex, nil, &sdl.Rect{X: mouseX - popupWidth, Y: mouseY + int32(float64(popupHeight)*.65), W: w, H: h})
 
