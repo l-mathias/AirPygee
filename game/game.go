@@ -5,9 +5,11 @@ import (
 	"encoding/csv"
 	"fmt"
 	"math"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 )
 
 // TODO - improve loadWorld loadLevels - one should call the other one
@@ -98,7 +100,10 @@ type Character struct {
 	Entity
 	Health        int
 	MaxHealth     int
-	Damage        int
+	MinDamage     int
+	MaxDamage     int
+	Armor         int
+	Critical      float64
 	Speed         float64
 	ActionPoints  float64
 	SightRange    int
@@ -150,9 +155,14 @@ func (level *Level) MoveItem(itemToMove Item, character *Character) {
 	panic("Tried to move an item we were not on top of")
 }
 
+func randomizeDamage(min, max int) int {
+	rand.Seed(time.Now().UnixNano())
+	return rand.Intn(max-min+1) + min
+}
+
 func (level *Level) Attack(c1, c2 *Character) {
 	c1.ActionPoints--
-	c1AttackPower := c1.Damage
+	c1AttackPower := randomizeDamage(c1.MinDamage, c1.MaxDamage)
 	c2.Health -= c1AttackPower
 
 	if c2.Health > 0 {

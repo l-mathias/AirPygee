@@ -24,10 +24,26 @@ func (ui *ui) displayStats(level *game.Level) {
 		panic(err)
 	}
 
-	// Drawing Strength count
-	tex = ui.stringToTexture("Damage "+strconv.Itoa(level.Player.Damage), sdl.Color{R: 139, G: 69, B: 19}, FontMedium)
+	// Drawing Damage count
+	tex = ui.stringToTexture("Damage "+strconv.Itoa(level.Player.MinDamage)+" - "+strconv.Itoa(level.Player.MaxDamage), sdl.Color{R: 139, G: 69, B: 19}, FontMedium)
 	_, _, w, h, _ = tex.Query()
 	err = ui.renderer.Copy(tex, nil, &sdl.Rect{X: int32(float64(statsPanel.W) * .10), Y: statsPanelOffsetY + int32(float64(statsPanel.H)*.25), W: w, H: h})
+	if err != nil {
+		panic(err)
+	}
+
+	// Drawing Defense count
+	tex = ui.stringToTexture("Armor "+strconv.Itoa(level.Player.Armor), sdl.Color{R: 139, G: 69, B: 19}, FontMedium)
+	_, _, w, h, _ = tex.Query()
+	err = ui.renderer.Copy(tex, nil, &sdl.Rect{X: int32(float64(statsPanel.W) * .10), Y: statsPanelOffsetY + int32(float64(statsPanel.H)*.45), W: w, H: h})
+	if err != nil {
+		panic(err)
+	}
+
+	// Drawing Critical count
+	tex = ui.stringToTexture("Critical "+fmt.Sprintf("%.2f %%", level.Player.Critical), sdl.Color{R: 139, G: 69, B: 19}, FontMedium)
+	_, _, w, h, _ = tex.Query()
+	err = ui.renderer.Copy(tex, nil, &sdl.Rect{X: int32(float64(statsPanel.W) * .10), Y: statsPanelOffsetY + int32(float64(statsPanel.H)*.65), W: w, H: h})
 	if err != nil {
 		panic(err)
 	}
@@ -118,11 +134,11 @@ func (ui *ui) displayPopupItem(item game.Item, mouseX, mouseY int32) {
 		_, _, w, h, _ = tex.Query()
 		ui.renderer.Copy(tex, nil, &sdl.Rect{X: mouseX - popupWidth, Y: mouseY + int32(float64(popupHeight)*.45), W: w, H: h})
 
-		tex = ui.stringToTexture(fmt.Sprintf("Defense: %d - %d", item.(game.EquipableItem).GetStats().MinDefense, item.(game.EquipableItem).GetStats().MaxDefense), color, FontSmall)
+		tex = ui.stringToTexture(fmt.Sprintf("Armor: %d", item.(game.EquipableItem).GetStats().Armor), color, FontSmall)
 		_, _, w, h, _ = tex.Query()
 		ui.renderer.Copy(tex, nil, &sdl.Rect{X: mouseX - popupWidth, Y: mouseY + int32(float64(popupHeight)*.55), W: w, H: h})
 
-		tex = ui.stringToTexture(fmt.Sprintf("Critical: %.2f %% - %.2f %%", item.(game.EquipableItem).GetStats().MinCritical, item.(game.EquipableItem).GetStats().MaxCritical), color, FontSmall)
+		tex = ui.stringToTexture(fmt.Sprintf("Crit Chance: %.2f %% ", item.(game.EquipableItem).GetStats().Critical), color, FontSmall)
 		_, _, w, h, _ = tex.Query()
 		ui.renderer.Copy(tex, nil, &sdl.Rect{X: mouseX - popupWidth, Y: mouseY + int32(float64(popupHeight)*.65), W: w, H: h})
 

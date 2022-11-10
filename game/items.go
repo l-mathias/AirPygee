@@ -58,12 +58,10 @@ type ConsumableItem interface {
 }
 
 type EquipableItemStats struct {
-	MinDamage   int
-	MaxDamage   int
-	MinDefense  int
-	MaxDefense  int
-	MinCritical float64
-	MaxCritical float64
+	MinDamage int
+	MaxDamage int
+	Armor     int
+	Critical  float64
 }
 
 type Weapon struct {
@@ -220,12 +218,10 @@ func randomizeStats(rarity Rarity, stats *EquipableItemStats) *EquipableItemStat
 		multiplier = 3
 	}
 
-	stats.MinCritical *= multiplier
-	stats.MaxCritical *= multiplier
+	stats.Critical *= multiplier
 	stats.MinDamage = int(float64(stats.MinDamage) * multiplier)
 	stats.MaxDamage = int(float64(stats.MaxDamage) * multiplier)
-	stats.MinDefense = int(float64(stats.MinDefense) * multiplier)
-	stats.MaxDefense = int(float64(stats.MaxDefense) * multiplier)
+	stats.Armor = int(float64(stats.Armor) * multiplier)
 	return stats
 }
 
@@ -252,12 +248,10 @@ func randomizeRarity() Rarity {
 func NewSword(p Pos) *Sword {
 	rarity := randomizeRarity()
 	stats := randomizeStats(rarity, &EquipableItemStats{
-		MinDamage:   5,
-		MaxDamage:   10,
-		MinDefense:  0,
-		MaxDefense:  0,
-		MinCritical: 0,
-		MaxCritical: 0,
+		MinDamage: 5,
+		MaxDamage: 10,
+		Armor:     0,
+		Critical:  0,
 	})
 	return &Sword{
 		Weapon: Weapon{Entity: Entity{
@@ -276,12 +270,10 @@ func NewSword(p Pos) *Sword {
 func NewHelmet(p Pos) *Helmet {
 	rarity := randomizeRarity()
 	stats := randomizeStats(rarity, &EquipableItemStats{
-		MinDamage:   0,
-		MaxDamage:   0,
-		MinDefense:  5,
-		MaxDefense:  10,
-		MinCritical: 0,
-		MaxCritical: 0,
+		MinDamage: 0,
+		MaxDamage: 0,
+		Armor:     5,
+		Critical:  0,
 	})
 	return &Helmet{Armor: Armor{
 		Entity: Entity{
@@ -325,10 +317,24 @@ func (game *Game) consumePotion(item ConsumableItem) {
 	game.CurrentLevel.LastEvent = ConsumePotion
 }
 
-func (game *Game) equip(itemToEquip EquipableItem) {
+func (game *Game) adaptPlayerStats(item EquipableItem, addOrRemove string) {
+	if addOrRemove == "add" {
+		game.CurrentLevel.Player.MinDamage += item.GetStats().MinDamage
+		game.CurrentLevel.Player.MaxDamage += item.GetStats().MaxDamage
+		game.CurrentLevel.Player.Critical += item.GetStats().Critical
+		game.CurrentLevel.Player.Armor += item.GetStats().Armor
+	} else if addOrRemove == "remove" {
+		game.CurrentLevel.Player.MinDamage -= item.GetStats().MinDamage
+		game.CurrentLevel.Player.MaxDamage -= item.GetStats().MaxDamage
+		game.CurrentLevel.Player.Critical -= item.GetStats().Critical
+		game.CurrentLevel.Player.Armor -= item.GetStats().Armor
+	}
+}
 
+func (game *Game) equip(itemToEquip EquipableItem) {
 	if game.slotFreeToEquip(itemToEquip) {
 		itemToEquip.Equip()
+		game.adaptPlayerStats(itemToEquip, "add")
 		game.CurrentLevel.Player.EquippedItems = append(game.CurrentLevel.Player.EquippedItems, itemToEquip)
 		for i, item := range game.CurrentLevel.Player.Items {
 			if item == itemToEquip {
@@ -340,6 +346,7 @@ func (game *Game) equip(itemToEquip EquipableItem) {
 
 func (game *Game) unEquip(itemToUnEquip EquipableItem) {
 	itemToUnEquip.UnEquip()
+	game.adaptPlayerStats(itemToUnEquip, "remove")
 	game.CurrentLevel.Player.Items = append(game.CurrentLevel.Player.Items, itemToUnEquip)
 	for i, item := range game.CurrentLevel.Player.EquippedItems {
 		if item == itemToUnEquip {
