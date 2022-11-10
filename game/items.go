@@ -49,6 +49,7 @@ type EquipableItem interface {
 	UnEquip()
 	GetStats() *EquipableItemStats
 	GetRarity() Rarity
+	ToString(Rarity) string
 }
 
 type ConsumableItem interface {
@@ -106,6 +107,21 @@ func (w *Weapon) GetRarity() Rarity {
 func (w *Weapon) GetStats() *EquipableItemStats {
 	return &w.EquipableItemStats
 }
+func (w *Weapon) ToString(rarity Rarity) string {
+	switch rarity {
+	case Common:
+		return "Common"
+	case Uncommon:
+		return "Uncommon"
+	case Rare:
+		return "Rare"
+	case Epic:
+		return "Epic"
+	case Legendary:
+		return "Legendary"
+	}
+	return ""
+}
 
 type Armor struct {
 	Entity
@@ -147,6 +163,21 @@ func (a *Armor) GetRarity() Rarity {
 }
 func (a *Armor) GetStats() *EquipableItemStats {
 	return &a.EquipableItemStats
+}
+func (a *Armor) ToString(rarity Rarity) string {
+	switch rarity {
+	case Common:
+		return "Common"
+	case Uncommon:
+		return "Uncommon"
+	case Rare:
+		return "Rare"
+	case Epic:
+		return "Epic"
+	case Legendary:
+		return "Legendary"
+	}
+	return ""
 }
 
 type Potion struct {
