@@ -44,6 +44,7 @@ type EquipableItem interface {
 	UnEquip()
 	GetStats() *EquipableItemStats
 	GetCritical() float64
+	GetRarity() Rarity
 }
 
 type ConsumableItem interface {
@@ -59,9 +60,9 @@ type EquipableItemStats struct {
 type Weapon struct {
 	Entity
 	EquipableItemStats
-
 	Critical float64
 	Equipped bool
+	Rarity
 }
 
 type Sword struct {
@@ -92,6 +93,9 @@ func (w *Weapon) GetEntity() *Entity {
 func (w *Weapon) SetPos(pos Pos) {
 	w.Pos = pos
 }
+func (w *Weapon) GetRarity() Rarity {
+	return w.Rarity
+}
 
 func (w *Weapon) GetCritical() float64 {
 	return w.Critical
@@ -106,6 +110,7 @@ type Armor struct {
 	EquipableItemStats
 	Critical float64
 	Equipped bool
+	Rarity
 }
 
 type Helmet struct {
@@ -135,6 +140,9 @@ func (a *Armor) GetEntity() *Entity {
 }
 func (a *Armor) SetPos(pos Pos) {
 	a.Pos = pos
+}
+func (a *Armor) GetRarity() Rarity {
+	return a.Rarity
 }
 
 func (a *Armor) GetCritical() float64 {
@@ -178,8 +186,8 @@ func NewSword(p Pos) *Sword {
 			Type:        Weapons,
 			Description: "A common sword...",
 			Location:    RightHand,
-			Rarity:      Rare,
 		},
+			Rarity:   Rare,
 			Critical: 0,
 			EquipableItemStats: EquipableItemStats{
 				Strength: 5,
@@ -197,8 +205,8 @@ func NewHelmet(p Pos) *Helmet {
 			Type:        Armors,
 			Description: "A common helmet...",
 			Location:    Head,
-			Rarity:      Uncommon,
 		},
+		Rarity:   Uncommon,
 		Critical: float64(0),
 		EquipableItemStats: EquipableItemStats{
 			Strength: 0,

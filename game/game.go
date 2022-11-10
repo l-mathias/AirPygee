@@ -92,7 +92,6 @@ type Entity struct {
 	Location
 	Type        ItemType
 	Description string
-	Rarity
 }
 
 type Character struct {

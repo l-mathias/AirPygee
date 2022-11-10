@@ -71,48 +71,44 @@ func (ui *ui) displayPopupItem(item game.Item, mouseX, mouseY int32) {
 
 	popupWidth := int32(float64(ui.winWidth) * .25)
 	popupHeight := int32(float64(ui.winHeight) * .25)
-	var tex *sdl.Texture
-	var color sdl.Color
+	color := sdl.Color{R: 225, G: 225, B: 225}
 	var rarity string
 
-	switch item.GetEntity().Rarity {
-	case game.Common:
-		color = sdl.Color{R: 225, G: 225, B: 225}
-		rarity = "Common"
-	case game.Uncommon:
-		color = sdl.Color{R: 0, G: 225, B: 0}
-		rarity = "Uncommon"
-	case game.Rare:
-		color = sdl.Color{R: 0, G: 0, B: 225}
-		rarity = "Rare"
-	case game.Epic:
-		color = sdl.Color{R: 225, G: 0, B: 225}
-		rarity = "Epic"
-	case game.Legendary:
-		color = sdl.Color{R: 225, G: 225, B: 0}
-		rarity = "Legendary"
+	if item.GetEntity().Type != game.Potions {
+		switch item.(game.EquipableItem).GetRarity() {
+		case game.Common:
+			color = sdl.Color{R: 225, G: 225, B: 225}
+			rarity = "Common"
+		case game.Uncommon:
+			color = sdl.Color{R: 0, G: 225, B: 0}
+			rarity = "Uncommon"
+		case game.Rare:
+			color = sdl.Color{R: 0, G: 0, B: 225}
+			rarity = "Rare"
+		case game.Epic:
+			color = sdl.Color{R: 225, G: 0, B: 225}
+			rarity = "Epic"
+		case game.Legendary:
+			color = sdl.Color{R: 225, G: 225, B: 0}
+			rarity = "Legendary"
+		}
 	}
 
 	ui.renderer.Copy(popup, nil, &sdl.Rect{X: mouseX - popupWidth, Y: mouseY, W: popupWidth, H: popupHeight})
 
+	// display item Name
+	tex := ui.stringToTexture(item.GetName(), color, FontMedium)
+	_, _, w, h, _ := tex.Query()
+	ui.renderer.Copy(tex, nil, &sdl.Rect{X: mouseX - (popupWidth / 2) - (w / 2), Y: mouseY + int32(float64(popupHeight)*.05), W: w, H: h})
+
 	// display item specific
 	switch item.GetEntity().Type {
 	case game.Potions:
-		// display item Name
-		tex = ui.stringToTexture(item.GetName(), color, FontMedium)
-		_, _, w, h, _ := tex.Query()
-		ui.renderer.Copy(tex, nil, &sdl.Rect{X: mouseX - (popupWidth / 2) - (w / 2), Y: mouseY + int32(float64(popupHeight)*.05), W: w, H: h})
-
-		tex = ui.stringToTexture("Size: "+item.(game.ConsumableItem).GetSize(), color, FontSmall)
-		_, _, w, h, _ = tex.Query()
-		ui.renderer.Copy(tex, nil, &sdl.Rect{X: mouseX - popupWidth, Y: mouseY + int32(float64(popupHeight)*.65), W: w, H: h})
+		texPotion := ui.stringToTexture("Size: "+item.(game.ConsumableItem).GetSize(), color, FontSmall)
+		_, _, w, h, _ := texPotion.Query()
+		ui.renderer.Copy(texPotion, nil, &sdl.Rect{X: mouseX - popupWidth, Y: mouseY + int32(float64(popupHeight)*.65), W: w, H: h})
 
 	case game.Weapons, game.Armors:
-		// display item Name
-		tex = ui.stringToTexture(item.GetName(), color, FontMedium)
-		_, _, w, h, _ := tex.Query()
-		ui.renderer.Copy(tex, nil, &sdl.Rect{X: mouseX - (popupWidth / 2) - (w / 2), Y: mouseY + int32(float64(popupHeight)*.05), W: w, H: h})
-
 		tex = ui.stringToTexture(fmt.Sprintf("Strength: %d", item.(game.EquipableItem).GetStats().Strength), color, FontSmall)
 		_, _, w, h, _ = tex.Query()
 		ui.renderer.Copy(tex, nil, &sdl.Rect{X: mouseX - popupWidth, Y: mouseY + int32(float64(popupHeight)*.45), W: w, H: h})
@@ -121,17 +117,15 @@ func (ui *ui) displayPopupItem(item game.Item, mouseX, mouseY int32) {
 		_, _, w, h, _ = tex.Query()
 		ui.renderer.Copy(tex, nil, &sdl.Rect{X: mouseX - popupWidth, Y: mouseY + int32(float64(popupHeight)*.55), W: w, H: h})
 
-		fmt.Println(color)
 		tex = ui.stringToTexture(fmt.Sprintf("Critical: %.2f %%", item.(game.EquipableItem).GetCritical()), color, FontSmall)
 		_, _, w, h, _ = tex.Query()
 		ui.renderer.Copy(tex, nil, &sdl.Rect{X: mouseX - popupWidth, Y: mouseY + int32(float64(popupHeight)*.65), W: w, H: h})
 
+		// display item rarity
+		tex = ui.stringToTexture("Rarity: "+rarity, color, FontSmall)
+		_, _, w, h, _ = tex.Query()
+		ui.renderer.Copy(tex, nil, &sdl.Rect{X: mouseX - popupWidth, Y: mouseY + int32(float64(popupHeight)*.75), W: w, H: h})
 	}
-
-	// display item rarity
-	tex = ui.stringToTexture("Rarity: "+rarity, color, FontSmall)
-	_, _, w, h, _ := tex.Query()
-	ui.renderer.Copy(tex, nil, &sdl.Rect{X: mouseX - popupWidth, Y: mouseY + int32(float64(popupHeight)*.75), W: w, H: h})
 
 	// display item description
 	tex = ui.stringToTexture("Description: "+item.GetDescription(), color, FontSmall)
@@ -215,7 +209,7 @@ func (ui *ui) displayEvents(level *game.Level) {
 			tex := ui.stringToTexture(event, sdl.Color{R: 100, G: 50}, FontSmall)
 			_, _, w, h, _ := tex.Query()
 
-			err := ui.renderer.Copy(tex, nil, &sdl.Rect{X: textStartX, Y: int32(count*fontSizeY) + (int32(ui.winHeight) - (int32(ui.winHeight) - textStartY)), W: w, H: h})
+			err = ui.renderer.Copy(tex, nil, &sdl.Rect{X: textStartX, Y: int32(count*fontSizeY) + (int32(ui.winHeight) - (int32(ui.winHeight) - textStartY)), W: w, H: h})
 			if err != nil {
 				panic(err)
 			}

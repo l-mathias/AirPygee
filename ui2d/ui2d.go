@@ -73,6 +73,11 @@ type menuButton struct {
 	highlighted    bool
 }
 
+type coloredFont struct {
+	text  string
+	color sdl.Color
+}
+
 type ui struct {
 	state               uiState
 	sounds              sounds
@@ -117,8 +122,7 @@ type ui struct {
 
 	// Fonts
 	fontSmall, fontMedium, fontLarge          *ttf.Font
-	str2TexSmall, str2TexMedium, str2TexLarge map[string]*sdl.Texture
-
+	str2TexSmall, str2TexMedium, str2TexLarge map[coloredFont]*sdl.Texture
 	//Main Menu
 	menuButtons []*menuButton
 }
@@ -128,9 +132,9 @@ func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 	ui.state = UIMain
 	ui.inputChan = inputChan
 	ui.levelChan = levelChan
-	ui.str2TexSmall = make(map[string]*sdl.Texture)
-	ui.str2TexMedium = make(map[string]*sdl.Texture)
-	ui.str2TexLarge = make(map[string]*sdl.Texture)
+	ui.str2TexSmall = make(map[coloredFont]*sdl.Texture)
+	ui.str2TexMedium = make(map[coloredFont]*sdl.Texture)
+	ui.str2TexLarge = make(map[coloredFont]*sdl.Texture)
 	ui.r = rand.New(rand.NewSource(1))
 	ui.winWidth = 1280
 	ui.winHeight = 720
@@ -283,21 +287,22 @@ type FontSize int
 
 func (ui *ui) stringToTexture(s string, color sdl.Color, size FontSize) *sdl.Texture {
 
+	coloredFont := coloredFont{s, color}
 	var font *ttf.Font
 	switch size {
 	case FontSmall:
 		font = ui.fontSmall
-		if tex, exists := ui.str2TexSmall[s]; exists {
+		if tex, exists := ui.str2TexSmall[coloredFont]; exists {
 			return tex
 		}
 	case FontMedium:
 		font = ui.fontMedium
-		if tex, exists := ui.str2TexMedium[s]; exists {
+		if tex, exists := ui.str2TexMedium[coloredFont]; exists {
 			return tex
 		}
 	case FontLarge:
 		font = ui.fontLarge
-		if tex, exists := ui.str2TexLarge[s]; exists {
+		if tex, exists := ui.str2TexLarge[coloredFont]; exists {
 			return tex
 		}
 	}
@@ -308,17 +313,18 @@ func (ui *ui) stringToTexture(s string, color sdl.Color, size FontSize) *sdl.Tex
 	defer fontSurface.Free()
 
 	tex, err := ui.renderer.CreateTextureFromSurface(fontSurface)
+
 	if err != nil {
 		panic(err)
 	}
 
 	switch size {
 	case FontSmall:
-		ui.str2TexSmall[s] = tex
+		ui.str2TexSmall[coloredFont] = tex
 	case FontMedium:
-		ui.str2TexMedium[s] = tex
+		ui.str2TexMedium[coloredFont] = tex
 	case FontLarge:
-		ui.str2TexLarge[s] = tex
+		ui.str2TexLarge[coloredFont] = tex
 	}
 
 	return tex
