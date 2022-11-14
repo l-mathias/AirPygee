@@ -229,6 +229,10 @@ func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 
 func (ui *ui) buildAnimations() {
 	ui.buildAnimation(game.AnimatedPortal, &sdl.Rect{X: 1376, Y: 320, W: tileSize, H: tileSize}, &sdl.Rect{X: 1408, Y: 320, W: tileSize, H: tileSize}, &sdl.Rect{X: 1440, Y: 320, W: tileSize, H: tileSize})
+	ui.buildAnimation(game.UpArrow, &sdl.Rect{X: 352, Y: 768, W: tileSize, H: tileSize})
+	ui.buildAnimation(game.DownArrow, &sdl.Rect{X: 480, Y: 768, W: tileSize, H: tileSize})
+	ui.buildAnimation(game.LeftArrow, &sdl.Rect{X: 544, Y: 768, W: tileSize, H: tileSize})
+	ui.buildAnimation(game.RightArrow, &sdl.Rect{X: 416, Y: 768, W: tileSize, H: tileSize})
 }
 
 func (ui *ui) loadSounds() {
@@ -616,7 +620,8 @@ func (ui *ui) Run() {
 				}
 				switch e.Keysym.Sym {
 				case sdl.K_a:
-					go ui.displayAnimation(newLevel, 5*time.Second, game.Pos{X: 3, Y: 2}, game.AnimatedPortal)
+
+					go ui.displayMovingAnimation(newLevel, 500*time.Millisecond, game.RightArrow, game.Pos{X: newLevel.Player.X + 1, Y: newLevel.Player.Y}, game.Pos{X: newLevel.Player.X + 2, Y: newLevel.Player.Y}, game.Pos{X: newLevel.Player.X + 3, Y: newLevel.Player.Y})
 				case sdl.K_ESCAPE:
 					if ui.state == UIMain {
 						ui.state = UIMenu

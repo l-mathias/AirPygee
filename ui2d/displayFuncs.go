@@ -184,7 +184,9 @@ func (ui *ui) displayMonsters(level *game.Level) {
 				panic(err)
 			}
 
+			ui.textureIndex.mu.RLock()
 			monsterSrcRect := ui.textureIndex.rects[monster.Rune][0]
+			ui.textureIndex.mu.RUnlock()
 
 			err := ui.renderer.Copy(ui.textureAtlas, &monsterSrcRect, &sdl.Rect{X: int32(pos.X)*tileSize + ui.offsetX, Y: int32(pos.Y)*tileSize + ui.offsetY, W: tileSize, H: tileSize})
 			if err != nil {
@@ -200,7 +202,9 @@ func (ui *ui) displayItems(level *game.Level) {
 	for pos, items := range level.Items {
 		if level.Map[pos.Y][pos.X].Visible {
 			for _, item := range items {
+				ui.textureIndex.mu.RLock()
 				itemSrcRect := ui.textureIndex.rects[item.GetRune()][0]
+				ui.textureIndex.mu.RUnlock()
 				var size int32
 				size = tileSize
 				if item.GetName() == "Potion" {
@@ -268,34 +272,24 @@ func (ui *ui) buildAnimation(animation rune, texs ...*sdl.Rect) {
 func (ui *ui) displayAnimation(level *game.Level, duration time.Duration, p game.Pos, animation rune) {
 	tempTile := level.Map[p.Y][p.X].OverlayRune
 	level.Map[p.Y][p.X].OverlayRune = animation
+	numFrames := len(ui.animations[animation])
 
-	var currentFrame int
 	for start := time.Now(); time.Since(start) < duration; {
-
 		ui.textureIndex.mu.Lock()
-		switch {
-		case int(time.Since(start).Seconds())%3 == 0:
-			if currentFrame != 1 {
-				ui.textureIndex.rects[animation] = nil
-				ui.textureIndex.rects[animation] = append(ui.textureIndex.rects[animation], *ui.animations[animation][0])
-				currentFrame = 1
-			}
 
-		case int(time.Since(start).Seconds())%3 == 1:
-			if currentFrame != 2 {
+		for i := 0; i < numFrames; i++ {
+			if int(time.Since(start).Nanoseconds())%numFrames == i {
 				ui.textureIndex.rects[animation] = nil
-				ui.textureIndex.rects[animation] = append(ui.textureIndex.rects[animation], *ui.animations[animation][1])
-				currentFrame = 2
-			}
-		case int(time.Since(start).Seconds())%3 == 2:
-			if currentFrame != 3 {
-				ui.textureIndex.rects[animation] = nil
-				ui.textureIndex.rects[animation] = append(ui.textureIndex.rects[animation], *ui.animations[animation][2])
-				currentFrame = 3
+				ui.textureIndex.rects[animation] = append(ui.textureIndex.rects[animation], *ui.animations[animation][i])
 			}
 		}
 		ui.textureIndex.mu.Unlock()
 	}
-
 	level.Map[p.Y][p.X].OverlayRune = tempTile
+}
+
+func (ui *ui) displayMovingAnimation(level *game.Level, duration time.Duration, animation rune, poss ...game.Pos) {
+	for _, pos := range poss {
+		ui.displayAnimation(level, duration, pos, animation)
+	}
 }

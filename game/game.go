@@ -74,6 +74,10 @@ const (
 	UpStair        rune = 'u'
 	Blank          rune = 0
 	AnimatedPortal rune = 'a'
+	LeftArrow      rune = 'L'
+	RightArrow     rune = 'R'
+	DownArrow      rune = 'D'
+	UpArrow        rune = 'U'
 	Pending        rune = -1
 )
 
@@ -393,7 +397,6 @@ func (level *Level) FrontOf() Pos {
 	cameFrom := level.Player.CameFrom
 	currentPos := level.Player.Pos
 	switch {
-	// came from Left so look to right
 	case cameFrom.X < currentPos.X:
 		return Pos{currentPos.X + 1, currentPos.Y}
 	case cameFrom.X > currentPos.X:
