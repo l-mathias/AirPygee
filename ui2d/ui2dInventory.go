@@ -5,7 +5,100 @@ import (
 	"github.com/veandco/go-sdl2/sdl"
 )
 
+func (ui *ui) menuInventory(level *game.Level) {
+	ui.prevMouseState = getMouseState()
+
+	for ui.state == UIInventory {
+		select {
+		case level = <-ui.levelChan:
+		default:
+		}
+		ui.currentMouseState = getMouseState()
+		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
+			ui.draw(level)
+			ui.drawInventory(level)
+			switch e := event.(type) {
+			case *sdl.QuitEvent:
+				ui.inputChan <- &game.Input{Typ: game.QuitGame}
+			case *sdl.WindowEvent:
+				if e.Event == sdl.WINDOWEVENT_CLOSE {
+					ui.inputChan <- &game.Input{Typ: game.CloseWindow, LevelChannel: ui.levelChan}
+				}
+			case *sdl.MouseButtonEvent:
+				if e.State == sdl.PRESSED && e.Button == sdl.BUTTON_LEFT {
+					if ui.draggedItem == nil {
+						ui.draggedItem = ui.clickValidItem(level, e.X, e.Y)
+						if ui.draggedItem == nil {
+							ui.draggedItem = ui.clickValidItem(level, e.X, e.Y)
+						}
+					}
+				}
+				if e.State == sdl.RELEASED && e.Button == sdl.BUTTON_LEFT {
+					// if clicked on item inventory or equipped item
+					if ui.draggedItem != nil && ui.dragMode != none {
+						var item game.Item
+						if ui.dragMode == fromInventory {
+							if ui.hasClickedOnValidEquipSlot(e.X, e.Y, ui.draggedItem) && ui.isSlotFree(level, ui.draggedItem) {
+								item = ui.draggedItem
+							} else if ui.hasClickedOutsideInventoryZone(e.X, e.Y) {
+								ui.inputChan <- &game.Input{Typ: game.Drop, Item: ui.draggedItem}
+							}
+						}
+						if ui.dragMode == fromEquippedItems {
+							if ui.hasClickedInBackpackZone(e.X, e.Y) {
+								item = ui.draggedItem
+							}
+						}
+
+						if item != nil {
+							ui.inputChan <- &game.Input{Typ: game.Equip, Item: ui.draggedItem}
+						}
+						ui.draggedItem = nil
+						ui.dragMode = none
+						ui.draw(level)
+						ui.drawInventory(level)
+					}
+				}
+				if e.State == sdl.PRESSED && e.Button == sdl.BUTTON_RIGHT {
+					item := ui.clickValidItem(level, e.X, e.Y)
+					if item != nil {
+						switch item.GetEntity().Type {
+						case game.Potions:
+							ui.inputChan <- &game.Input{Typ: game.Action, Item: item}
+						case game.Weapons, game.Armors:
+							ui.inputChan <- &game.Input{Typ: game.Equip, Item: item}
+						}
+					}
+				}
+			case *sdl.MouseMotionEvent:
+				item := ui.clickValidItem(level, e.X, e.Y)
+				if ui.draggedItem != nil || item != nil {
+					ui.drawInventory(level)
+					if item != nil && ui.draggedItem == nil {
+						ui.displayPopupItem(item, e.X, e.Y)
+					}
+				}
+			case *sdl.KeyboardEvent:
+				if e.State != sdl.PRESSED {
+					break
+				}
+				switch e.Keysym.Sym {
+				case sdl.K_t:
+					ui.inputChan <- &game.Input{Typ: game.TakeAll}
+				case sdl.K_ESCAPE, sdl.K_i:
+					ui.state = UIMain
+					return
+				}
+			}
+		}
+		ui.renderer.Present()
+		sdl.Delay(1)
+		ui.prevMouseState = ui.currentMouseState
+	}
+}
+
 func (ui *ui) drawInventory(level *game.Level) {
+	//fmt.Println(time.Now().String() + " drawInventory")
 	var locationX, locationY int32
 
 	playerSrcRect := sdl.Rect{X: 0, Y: 0, W: 26, H: 36}
@@ -49,7 +142,7 @@ func (ui *ui) drawInventory(level *game.Level) {
 	}
 
 	for i, item := range level.Player.EquippedItems {
-		itemSrcRect := ui.textureIndex[item.GetRune()][0]
+		itemSrcRect := ui.textureIndex.rects[item.GetRune()][0]
 
 		switch item.GetEntity().Location {
 		case game.Head:
@@ -89,7 +182,7 @@ func (ui *ui) drawInventory(level *game.Level) {
 	var countX int32 = 0
 	var countY int32 = 0
 	for _, item := range level.Player.Items {
-		itemSrcRect := ui.textureIndex[item.GetRune()][0]
+		itemSrcRect := ui.textureIndex.rects[item.GetRune()][0]
 		if countX%5 == 0 {
 			countX = 0
 			countY++
@@ -196,7 +289,9 @@ func (ui *ui) clickValidItem(level *game.Level, mouseX, mouseY int32) game.Item 
 	for i, item := range level.Player.Items {
 		itemRect := ui.getInventoryItemRect(i, level)
 		if itemRect.HasIntersection(&sdl.Rect{X: mouseX, Y: mouseY, W: 1, H: 1}) {
-			ui.dragMode = fromInventory
+			if !ui.prevMouseState.leftButton {
+				ui.dragMode = fromInventory
+			}
 			return item
 		}
 	}
@@ -204,7 +299,9 @@ func (ui *ui) clickValidItem(level *game.Level, mouseX, mouseY int32) game.Item 
 	for _, item := range level.Player.EquippedItems {
 		itemRect := ui.getEquippedItemRect(item)
 		if itemRect.HasIntersection(&sdl.Rect{X: mouseX, Y: mouseY, W: 1, H: 1}) {
-			ui.dragMode = fromEquippedItems
+			if !ui.prevMouseState.leftButton {
+				ui.dragMode = fromEquippedItems
+			}
 			return item
 		}
 	}
@@ -232,20 +329,12 @@ func (ui *ui) hasClickedOnValidEquipSlot(mouseX, mouseY int32, item game.Item) b
 
 func (ui *ui) hasClickedInBackpackZone(mouseX, mouseY int32) bool {
 	itemRect := &sdl.Rect{X: ui.invOffsetX + ui.invWidth, Y: ui.invOffsetY + ui.itemH, W: ui.itemW * 5, H: ui.itemH * 4}
-	if itemRect.HasIntersection(&sdl.Rect{X: mouseX, Y: mouseY, W: 1, H: 1}) {
-		return true
-	} else {
-		return false
-	}
+	return itemRect.HasIntersection(&sdl.Rect{X: mouseX, Y: mouseY, W: 1, H: 1})
 }
 
 func (ui *ui) hasClickedInEquipZone(mouseX, mouseY int32) bool {
 	itemRect := &sdl.Rect{X: ui.invOffsetX, Y: ui.invOffsetY, W: ui.invWidth, H: ui.invHeight}
-	if itemRect.HasIntersection(&sdl.Rect{X: mouseX, Y: mouseY, W: 1, H: 1}) {
-		return true
-	} else {
-		return false
-	}
+	return itemRect.HasIntersection(&sdl.Rect{X: mouseX, Y: mouseY, W: 1, H: 1})
 }
 
 func (ui *ui) hasClickedOutsideInventoryZone(mouseX, mouseY int32) bool {

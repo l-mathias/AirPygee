@@ -85,6 +85,7 @@ func (ui *ui) menuActions() {
 					ui.highlightNext()
 					ui.displayMenu()
 				case sdl.K_ESCAPE:
+					ui.state = UIMain
 					return
 				}
 			}

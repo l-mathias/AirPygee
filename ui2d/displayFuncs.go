@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/veandco/go-sdl2/sdl"
 	"strconv"
+	"time"
 )
 
 // displayStats is displaying player stats
@@ -12,6 +13,7 @@ func (ui *ui) displayStats(level *game.Level) {
 
 	statsPanel := ui.getRectFromTextureName("panel_brown.png")
 	statsPanelOffsetY := int32(float64(ui.winHeight) * 0.10)
+
 	if err := ui.renderer.Copy(ui.uipack, statsPanel, &sdl.Rect{X: 0, Y: statsPanelOffsetY, W: int32(float64(ui.winWidth) * 0.20), H: int32(float64(ui.winHeight) * 0.30)}); err != nil {
 		panic(err)
 	}
@@ -19,6 +21,7 @@ func (ui *ui) displayStats(level *game.Level) {
 	// Drawing Health count
 	tex := ui.stringToTexture("Life "+strconv.Itoa(level.Player.Health), sdl.Color{R: 139, G: 69, B: 19}, FontMedium)
 	_, _, w, h, _ := tex.Query()
+
 	err := ui.renderer.Copy(tex, nil, &sdl.Rect{X: int32(float64(statsPanel.W) * .10), Y: statsPanelOffsetY + int32(float64(statsPanel.H)*.05), W: w, H: h})
 	if err != nil {
 		panic(err)
@@ -27,6 +30,7 @@ func (ui *ui) displayStats(level *game.Level) {
 	// Drawing Damage count
 	tex = ui.stringToTexture("Damage "+strconv.Itoa(level.Player.MinDamage)+" - "+strconv.Itoa(level.Player.MaxDamage), sdl.Color{R: 139, G: 69, B: 19}, FontMedium)
 	_, _, w, h, _ = tex.Query()
+
 	err = ui.renderer.Copy(tex, nil, &sdl.Rect{X: int32(float64(statsPanel.W) * .10), Y: statsPanelOffsetY + int32(float64(statsPanel.H)*.25), W: w, H: h})
 	if err != nil {
 		panic(err)
@@ -35,6 +39,7 @@ func (ui *ui) displayStats(level *game.Level) {
 	// Drawing Defense count
 	tex = ui.stringToTexture("Armor "+strconv.Itoa(level.Player.Armor), sdl.Color{R: 139, G: 69, B: 19}, FontMedium)
 	_, _, w, h, _ = tex.Query()
+
 	err = ui.renderer.Copy(tex, nil, &sdl.Rect{X: int32(float64(statsPanel.W) * .10), Y: statsPanelOffsetY + int32(float64(statsPanel.H)*.45), W: w, H: h})
 	if err != nil {
 		panic(err)
@@ -43,6 +48,7 @@ func (ui *ui) displayStats(level *game.Level) {
 	// Drawing Critical count
 	tex = ui.stringToTexture("Critical "+fmt.Sprintf("%.2f %%", level.Player.Critical), sdl.Color{R: 139, G: 69, B: 19}, FontMedium)
 	_, _, w, h, _ = tex.Query()
+
 	err = ui.renderer.Copy(tex, nil, &sdl.Rect{X: int32(float64(statsPanel.W) * .10), Y: statsPanelOffsetY + int32(float64(statsPanel.H)*.65), W: w, H: h})
 	if err != nil {
 		panic(err)
@@ -54,14 +60,17 @@ func (ui *ui) displayStats(level *game.Level) {
 func (ui *ui) displayHUD(level *game.Level) {
 	firstFrameX := 512
 	for i := 0; i < 4; i++ {
+
 		if err := ui.renderer.Copy(ui.tileMap, &sdl.Rect{X: int32(firstFrameX + i*16), Y: 68, W: 16, H: 16}, &sdl.Rect{X: int32(i * 32), Y: 0, W: tileSize, H: tileSize}); err != nil {
 			panic(err)
 		}
+
 	}
 
 	// Move instruction after arrows
 	tex := ui.stringToTexture("Move", sdl.Color{R: 255}, FontSmall)
 	_, _, w, h, _ := tex.Query()
+
 	err := ui.renderer.Copy(tex, nil, &sdl.Rect{X: 144, Y: 8, W: w, H: h})
 	if err != nil {
 		panic(err)
@@ -146,6 +155,7 @@ func (ui *ui) displayPopupItem(item game.Item, mouseX, mouseY int32) {
 		tex = ui.stringToTexture("Rarity: "+rarity, color, FontSmall)
 		_, _, w, h, _ = tex.Query()
 		ui.renderer.Copy(tex, nil, &sdl.Rect{X: mouseX - popupWidth, Y: mouseY + int32(float64(popupHeight)*.75), W: w, H: h})
+
 	}
 
 	// display item description
@@ -166,6 +176,7 @@ func (ui *ui) displayMonsters(level *game.Level) {
 			if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 928, Y: 1600, W: tileSize, H: tileSize}, &sdl.Rect{X: int32(level.Monsters[pos].X)*tileSize + ui.offsetX, Y: int32(level.Monsters[pos].Y-1)*tileSize + ui.offsetY + 20, W: tileSize, H: 5}); err != nil {
 				panic(err)
 			}
+
 			var gauge float64
 			gauge = float64(level.Monsters[pos].Health) / float64(level.Monsters[pos].MaxHealth)
 
@@ -173,11 +184,13 @@ func (ui *ui) displayMonsters(level *game.Level) {
 				panic(err)
 			}
 
-			monsterSrcRect := ui.textureIndex[monster.Rune][0]
+			monsterSrcRect := ui.textureIndex.rects[monster.Rune][0]
+
 			err := ui.renderer.Copy(ui.textureAtlas, &monsterSrcRect, &sdl.Rect{X: int32(pos.X)*tileSize + ui.offsetX, Y: int32(pos.Y)*tileSize + ui.offsetY, W: tileSize, H: tileSize})
 			if err != nil {
 				panic(err)
 			}
+
 		}
 	}
 }
@@ -187,7 +200,7 @@ func (ui *ui) displayItems(level *game.Level) {
 	for pos, items := range level.Items {
 		if level.Map[pos.Y][pos.X].Visible {
 			for _, item := range items {
-				itemSrcRect := ui.textureIndex[item.GetRune()][0]
+				itemSrcRect := ui.textureIndex.rects[item.GetRune()][0]
 				var size int32
 				size = tileSize
 				if item.GetName() == "Potion" {
@@ -200,10 +213,12 @@ func (ui *ui) displayItems(level *game.Level) {
 						size = int32(float64(size) * .95)
 					}
 				}
+
 				err := ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: int32(pos.X)*tileSize + ui.offsetX, Y: int32(pos.Y)*tileSize + ui.offsetY, W: size, H: size})
 				if err != nil {
 					panic(err)
 				}
+
 			}
 		}
 	}
@@ -229,11 +244,11 @@ func (ui *ui) displayEvents(level *game.Level) {
 		if event != "" {
 			tex := ui.stringToTexture(event, sdl.Color{R: 100, G: 50}, FontSmall)
 			_, _, w, h, _ := tex.Query()
-
 			err = ui.renderer.Copy(tex, nil, &sdl.Rect{X: textStartX, Y: int32(count*fontSizeY) + (int32(ui.winHeight) - (int32(ui.winHeight) - textStartY)), W: w, H: h})
 			if err != nil {
 				panic(err)
 			}
+
 		}
 		i = (i + 1) % (len(level.Events))
 		count++
@@ -241,4 +256,46 @@ func (ui *ui) displayEvents(level *game.Level) {
 			break
 		}
 	}
+}
+
+func (ui *ui) buildAnimation(animation rune, texs ...*sdl.Rect) {
+	ui.textureIndex.rects[animation] = nil
+	for _, tex := range texs {
+		ui.animations[animation] = append(ui.animations[animation], tex)
+	}
+}
+
+func (ui *ui) displayAnimation(level *game.Level, duration time.Duration, p game.Pos, animation rune) {
+	tempTile := level.Map[p.Y][p.X].OverlayRune
+	level.Map[p.Y][p.X].OverlayRune = animation
+
+	var currentFrame int
+	for start := time.Now(); time.Since(start) < duration; {
+
+		ui.textureIndex.mu.Lock()
+		switch {
+		case int(time.Since(start).Seconds())%3 == 0:
+			if currentFrame != 1 {
+				ui.textureIndex.rects[animation] = nil
+				ui.textureIndex.rects[animation] = append(ui.textureIndex.rects[animation], *ui.animations[animation][0])
+				currentFrame = 1
+			}
+
+		case int(time.Since(start).Seconds())%3 == 1:
+			if currentFrame != 2 {
+				ui.textureIndex.rects[animation] = nil
+				ui.textureIndex.rects[animation] = append(ui.textureIndex.rects[animation], *ui.animations[animation][1])
+				currentFrame = 2
+			}
+		case int(time.Since(start).Seconds())%3 == 2:
+			if currentFrame != 3 {
+				ui.textureIndex.rects[animation] = nil
+				ui.textureIndex.rects[animation] = append(ui.textureIndex.rects[animation], *ui.animations[animation][2])
+				currentFrame = 3
+			}
+		}
+		ui.textureIndex.mu.Unlock()
+	}
+
+	level.Map[p.Y][p.X].OverlayRune = tempTile
 }

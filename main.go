@@ -5,6 +5,10 @@ import (
 	"AirPygee/ui2d"
 )
 
+//func init() {
+//	runtime.LockOSThread()
+//}
+
 func main() {
 
 	// For multiple UI but doesn't work on MAC because of sdl.PollEvents

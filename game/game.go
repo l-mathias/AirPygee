@@ -41,7 +41,7 @@ func NewGame(numWindows int) *Game {
 	for i := range levelChans {
 		levelChans[i] = make(chan *Level)
 	}
-	inputChan := make(chan *Input, 10)
+	inputChan := make(chan *Input, 20)
 
 	game := &Game{levelChans, inputChan, nil, nil}
 
@@ -66,14 +66,15 @@ type Input struct {
 }
 
 const (
-	StoneWall  rune = '#'
-	DirtFloor  rune = '.'
-	ClosedDoor rune = '|'
-	OpenDoor   rune = '/'
-	DownStair  rune = 'd'
-	UpStair    rune = 'u'
-	Blank      rune = 0
-	Pending    rune = -1
+	StoneWall      rune = '#'
+	DirtFloor      rune = '.'
+	ClosedDoor     rune = '|'
+	OpenDoor       rune = '/'
+	DownStair      rune = 'd'
+	UpStair        rune = 'u'
+	Blank          rune = 0
+	AnimatedPortal rune = 'a'
+	Pending        rune = -1
 )
 
 type Pos struct {
