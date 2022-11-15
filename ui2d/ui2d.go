@@ -559,6 +559,48 @@ func (ui *ui) pickupGroundItem(level *game.Level, mouseX, mouseY int32) game.Ite
 	return nil
 }
 
+func (ui *ui) fire(level *game.Level, attackRange int) {
+	var direction rune
+	var deltaX, deltaY int
+	firstPos := level.FrontOf()
+	positions := make([]game.Pos, attackRange)
+
+	switch {
+	case firstPos.X > level.Player.X:
+		direction = game.RightArrow
+		deltaX = 1
+	case firstPos.X < level.Player.X:
+		direction = game.LeftArrow
+		deltaX = -1
+	case firstPos.Y > level.Player.Y:
+		direction = game.DownArrow
+		deltaY = 1
+	case firstPos.Y < level.Player.Y:
+		direction = game.UpArrow
+		deltaY = -1
+	}
+
+	for i := 1; i <= attackRange; i++ {
+		x := level.Player.X + deltaX*i
+		y := level.Player.Y + deltaY*i
+
+		if x < 0 {
+			break
+		}
+		if y < 0 {
+			break
+		}
+
+		//fmt.Println("player pos : ", level.Player.X, level.Player.Y)
+		//fmt.Println("new Pos : ", x, y)
+
+		positions = append(positions, game.Pos{X: x, Y: y})
+	}
+	//fmt.Println()
+
+	go ui.displayMovingAnimation(level, 500*time.Millisecond, direction, positions)
+}
+
 // Run main UI loop
 func (ui *ui) Run() {
 	var newLevel *game.Level
@@ -620,8 +662,7 @@ func (ui *ui) Run() {
 				}
 				switch e.Keysym.Sym {
 				case sdl.K_a:
-
-					go ui.displayMovingAnimation(newLevel, 500*time.Millisecond, game.RightArrow, game.Pos{X: newLevel.Player.X + 1, Y: newLevel.Player.Y}, game.Pos{X: newLevel.Player.X + 2, Y: newLevel.Player.Y}, game.Pos{X: newLevel.Player.X + 3, Y: newLevel.Player.Y})
+					ui.fire(newLevel, 3)
 				case sdl.K_ESCAPE:
 					if ui.state == UIMain {
 						ui.state = UIMenu

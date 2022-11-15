@@ -25,6 +25,13 @@ func (ui *ui) menuInventory(level *game.Level) {
 					ui.inputChan <- &game.Input{Typ: game.CloseWindow, LevelChannel: ui.levelChan}
 				}
 			case *sdl.MouseButtonEvent:
+				if e.State == sdl.RELEASED && e.Button == sdl.BUTTON_LEFT {
+					//if clicked on ground item zone
+					item := ui.pickupGroundItem(level, e.X, e.Y)
+					if item != nil {
+						ui.inputChan <- &game.Input{Typ: game.TakeItem, Item: item}
+					}
+				}
 				if e.State == sdl.PRESSED && e.Button == sdl.BUTTON_LEFT {
 					if ui.draggedItem == nil {
 						ui.draggedItem = ui.clickValidItem(level, e.X, e.Y)

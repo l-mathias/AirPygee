@@ -288,8 +288,9 @@ func (ui *ui) displayAnimation(level *game.Level, duration time.Duration, p game
 	level.Map[p.Y][p.X].OverlayRune = tempTile
 }
 
-func (ui *ui) displayMovingAnimation(level *game.Level, duration time.Duration, animation rune, poss ...game.Pos) {
+func (ui *ui) displayMovingAnimation(level *game.Level, duration time.Duration, animation rune, poss []game.Pos) {
 	for _, pos := range poss {
+		fmt.Println(pos)
 		ui.displayAnimation(level, duration, pos, animation)
 	}
 }
