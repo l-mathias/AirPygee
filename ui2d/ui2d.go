@@ -512,7 +512,9 @@ func (ui *ui) draw(level *game.Level) {
 	if len(level.Items[level.Player.Pos]) > 0 {
 		groundItems := level.Items[level.Player.Pos]
 		for i, item := range groundItems {
+			ui.textureIndex.mu.RLock()
 			itemSrcRect := ui.textureIndex.rects[item.GetRune()][0]
+			ui.textureIndex.mu.RUnlock()
 
 			err = ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: int32(ui.winWidth) - tileSize - int32(i)*tileSize, Y: 0, W: tileSize, H: tileSize})
 			game.CheckError(err)
