@@ -565,7 +565,7 @@ func (ui *ui) fire(level *game.Level, attackRange int) {
 	var direction rune
 	var deltaX, deltaY int
 	firstPos := level.FrontOf()
-	positions := make([]game.Pos, attackRange)
+	positions := make([]game.Pos, 0)
 
 	switch {
 	case firstPos.X > level.Player.X:
@@ -593,13 +593,8 @@ func (ui *ui) fire(level *game.Level, attackRange int) {
 			break
 		}
 
-		//fmt.Println("player pos : ", level.Player.X, level.Player.Y)
-		//fmt.Println("new Pos : ", x, y)
-
 		positions = append(positions, game.Pos{X: x, Y: y})
 	}
-	//fmt.Println()
-
 	go ui.displayMovingAnimation(level, 500*time.Millisecond, direction, positions)
 }
 
