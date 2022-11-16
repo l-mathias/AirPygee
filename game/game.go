@@ -65,20 +65,31 @@ type Input struct {
 	LevelChannel chan *Level
 }
 
+// normal Tiles
 const (
-	StoneWall      rune = '#'
-	DirtFloor      rune = '.'
+	StoneWall rune = '#'
+	DirtFloor rune = '.'
+	Blank     rune = 0
+	Pending   rune = -1
+)
+
+// monsters tiles
+const (
+	Rat    rune = 'R'
+	Spider rune = 'S'
+)
+
+// Overlay tiles
+const (
 	ClosedDoor     rune = '|'
 	OpenDoor       rune = '/'
 	DownStair      rune = 'd'
 	UpStair        rune = 'u'
-	Blank          rune = 0
+	LeftAnim       rune = 'L'
+	RightAnim      rune = 'R'
+	DownAnim       rune = 'D'
+	UpAnim         rune = 'U'
 	AnimatedPortal rune = 'a'
-	LeftArrow      rune = 'L'
-	RightArrow     rune = 'R'
-	DownArrow      rune = 'D'
-	UpArrow        rune = 'U'
-	Pending        rune = -1
 )
 
 type Pos struct {
@@ -165,10 +176,22 @@ func randomizeDamage(min, max int) int {
 	return rand.Intn(max-min+1) + min
 }
 
+func isCritical(crit float64) bool {
+	rand.Seed(time.Now().UnixNano())
+	res := rand.Intn(100)
+
+	fmt.Println("crit value : ", crit)
+	fmt.Println(res)
+	return float64(res) <= crit
+}
+
 func (level *Level) Attack(c1, c2 *Character) {
 	c1.ActionPoints--
 	c1AttackPower := randomizeDamage(c1.MinDamage, c1.MaxDamage)
-	c2.Health -= c1AttackPower
+	if isCritical(c1.Critical) {
+		c1AttackPower *= 2
+	}
+	c2.Health -= c1AttackPower - c2.Armor
 
 	if c2.Health > 0 {
 		level.AddEvent(c1.Name + " attacked " + c2.Name + " for " + strconv.Itoa(c1AttackPower))

@@ -46,7 +46,7 @@ func randomizeLoot() *[]Item {
 func NewRat(p Pos) *Monster {
 	items := randomizeLoot()
 	return &Monster{Character{
-		Entity:       Entity{Pos: p, Name: "Rat", Rune: 'R'},
+		Entity:       Entity{Pos: p, Name: "Rat", Rune: Rat},
 		Health:       5,
 		MaxHealth:    5,
 		MinDamage:    1,
@@ -62,7 +62,7 @@ func NewRat(p Pos) *Monster {
 func NewSpider(p Pos) *Monster {
 	items := randomizeLoot()
 	return &Monster{Character{
-		Entity:       Entity{Pos: p, Name: "Spider", Rune: 'S'},
+		Entity:       Entity{Pos: p, Name: "Spider", Rune: Spider},
 		Health:       10,
 		MaxHealth:    10,
 		MinDamage:    2,

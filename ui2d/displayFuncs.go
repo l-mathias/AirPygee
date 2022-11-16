@@ -119,7 +119,8 @@ func (ui *ui) displayPopupItem(item game.Item, mouseX, mouseY int32) {
 		}
 	}
 
-	ui.renderer.Copy(popup, nil, &sdl.Rect{X: mouseX - popupWidth, Y: mouseY, W: popupWidth, H: popupHeight})
+	err := ui.renderer.Copy(popup, nil, &sdl.Rect{X: mouseX - popupWidth, Y: mouseY, W: popupWidth, H: popupHeight})
+	game.CheckError(err)
 
 	// display item specific
 	switch item.GetEntity().Type {
@@ -127,42 +128,49 @@ func (ui *ui) displayPopupItem(item game.Item, mouseX, mouseY int32) {
 		// display item Name
 		tex := ui.stringToTexture(item.GetName(), color, FontMedium)
 		_, _, w, h, _ := tex.Query()
-		ui.renderer.Copy(tex, nil, &sdl.Rect{X: mouseX - (popupWidth / 2) - (w / 2), Y: mouseY + int32(float64(popupHeight)*.05), W: w, H: h})
+		err = ui.renderer.Copy(tex, nil, &sdl.Rect{X: mouseX - (popupWidth / 2) - (w / 2), Y: mouseY + int32(float64(popupHeight)*.05), W: w, H: h})
+		game.CheckError(err)
 
 		texPotion := ui.stringToTexture("Size: "+item.(game.ConsumableItem).GetSize(), color, FontSmall)
 		_, _, w, h, _ = texPotion.Query()
-		ui.renderer.Copy(texPotion, nil, &sdl.Rect{X: mouseX - popupWidth, Y: mouseY + int32(float64(popupHeight)*.65), W: w, H: h})
+		err = ui.renderer.Copy(texPotion, nil, &sdl.Rect{X: mouseX - popupWidth, Y: mouseY + int32(float64(popupHeight)*.65), W: w, H: h})
+		game.CheckError(err)
 
 	case game.Weapons, game.Armors:
 		// display item Name
 		tex := ui.stringToTexture(item.(game.EquipableItem).ToString(item.(game.EquipableItem).GetRarity())+" "+item.GetName(), color, FontMedium)
 		_, _, w, h, _ := tex.Query()
-		ui.renderer.Copy(tex, nil, &sdl.Rect{X: mouseX - (popupWidth / 2) - (w / 2), Y: mouseY + int32(float64(popupHeight)*.05), W: w, H: h})
+		err = ui.renderer.Copy(tex, nil, &sdl.Rect{X: mouseX - (popupWidth / 2) - (w / 2), Y: mouseY + int32(float64(popupHeight)*.05), W: w, H: h})
+		game.CheckError(err)
 
 		tex = ui.stringToTexture(fmt.Sprintf("Damage: %d - %d", item.(game.EquipableItem).GetStats().MinDamage, item.(game.EquipableItem).GetStats().MaxDamage), color, FontSmall)
 		_, _, w, h, _ = tex.Query()
-		ui.renderer.Copy(tex, nil, &sdl.Rect{X: mouseX - popupWidth, Y: mouseY + int32(float64(popupHeight)*.45), W: w, H: h})
+		err = ui.renderer.Copy(tex, nil, &sdl.Rect{X: mouseX - popupWidth, Y: mouseY + int32(float64(popupHeight)*.45), W: w, H: h})
+		game.CheckError(err)
 
 		tex = ui.stringToTexture(fmt.Sprintf("Armor: %d", item.(game.EquipableItem).GetStats().Armor), color, FontSmall)
 		_, _, w, h, _ = tex.Query()
-		ui.renderer.Copy(tex, nil, &sdl.Rect{X: mouseX - popupWidth, Y: mouseY + int32(float64(popupHeight)*.55), W: w, H: h})
+		err = ui.renderer.Copy(tex, nil, &sdl.Rect{X: mouseX - popupWidth, Y: mouseY + int32(float64(popupHeight)*.55), W: w, H: h})
+		game.CheckError(err)
 
 		tex = ui.stringToTexture(fmt.Sprintf("Crit Chance: %.2f %% ", item.(game.EquipableItem).GetStats().Critical), color, FontSmall)
 		_, _, w, h, _ = tex.Query()
-		ui.renderer.Copy(tex, nil, &sdl.Rect{X: mouseX - popupWidth, Y: mouseY + int32(float64(popupHeight)*.65), W: w, H: h})
+		err = ui.renderer.Copy(tex, nil, &sdl.Rect{X: mouseX - popupWidth, Y: mouseY + int32(float64(popupHeight)*.65), W: w, H: h})
+		game.CheckError(err)
 
 		// display item rarity
 		tex = ui.stringToTexture("Rarity: "+rarity, color, FontSmall)
 		_, _, w, h, _ = tex.Query()
-		ui.renderer.Copy(tex, nil, &sdl.Rect{X: mouseX - popupWidth, Y: mouseY + int32(float64(popupHeight)*.75), W: w, H: h})
+		err = ui.renderer.Copy(tex, nil, &sdl.Rect{X: mouseX - popupWidth, Y: mouseY + int32(float64(popupHeight)*.75), W: w, H: h})
+		game.CheckError(err)
 
 	}
 
 	// display item description
 	tex := ui.stringToTexture("Description: "+item.GetDescription(), color, FontSmall)
 	_, _, w, h, _ := tex.Query()
-	ui.renderer.Copy(tex, nil, &sdl.Rect{X: mouseX - popupWidth, Y: mouseY + int32(float64(popupHeight)*.85), W: w, H: h})
-
+	err = ui.renderer.Copy(tex, nil, &sdl.Rect{X: mouseX - popupWidth, Y: mouseY + int32(float64(popupHeight)*.85), W: w, H: h})
+	game.CheckError(err)
 }
 
 // displayMonsters displays monsters on map
@@ -173,26 +181,22 @@ func (ui *ui) displayMonsters(level *game.Level) {
 	for pos, monster := range level.Monsters {
 		if level.Map[pos.Y][pos.X].Visible {
 
-			if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 928, Y: 1600, W: tileSize, H: tileSize}, &sdl.Rect{X: int32(level.Monsters[pos].X)*tileSize + ui.offsetX, Y: int32(level.Monsters[pos].Y-1)*tileSize + ui.offsetY + 20, W: tileSize, H: 5}); err != nil {
-				panic(err)
-			}
+			err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 928, Y: 1600, W: tileSize, H: tileSize}, &sdl.Rect{X: int32(level.Monsters[pos].X)*tileSize + ui.offsetX, Y: int32(level.Monsters[pos].Y-1)*tileSize + ui.offsetY + 20, W: tileSize, H: 5})
+			game.CheckError(err)
 
 			var gauge float64
 			gauge = float64(level.Monsters[pos].Health) / float64(level.Monsters[pos].MaxHealth)
 
-			if err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 1024, Y: 1600, W: tileSize, H: tileSize}, &sdl.Rect{X: int32(level.Monsters[pos].X)*tileSize + ui.offsetX, Y: int32(level.Monsters[pos].Y-1)*tileSize + ui.offsetY + 20, W: tileSize * int32(gauge), H: 5}); err != nil {
-				panic(err)
-			}
+			// health bar
+			err = ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 1024, Y: 1600, W: tileSize, H: tileSize}, &sdl.Rect{X: int32(level.Monsters[pos].X)*tileSize + ui.offsetX, Y: int32(level.Monsters[pos].Y-1)*tileSize + ui.offsetY + 20, W: tileSize * int32(gauge), H: 5})
+			game.CheckError(err)
 
-			ui.textureIndex.mu.RLock()
-			monsterSrcRect := ui.textureIndex.rects[monster.Rune][0]
-			ui.textureIndex.mu.RUnlock()
+			ui.textureIndexMonsters.mu.RLock()
+			monsterSrcRect := ui.textureIndexMonsters.rects[monster.Rune][0]
+			ui.textureIndexMonsters.mu.RUnlock()
 
-			err := ui.renderer.Copy(ui.textureAtlas, &monsterSrcRect, &sdl.Rect{X: int32(pos.X)*tileSize + ui.offsetX, Y: int32(pos.Y)*tileSize + ui.offsetY, W: tileSize, H: tileSize})
-			if err != nil {
-				panic(err)
-			}
-
+			err = ui.renderer.Copy(ui.textureAtlas, &monsterSrcRect, &sdl.Rect{X: int32(pos.X)*tileSize + ui.offsetX, Y: int32(pos.Y)*tileSize + ui.offsetY, W: tileSize, H: tileSize})
+			game.CheckError(err)
 		}
 	}
 }
@@ -202,9 +206,9 @@ func (ui *ui) displayItems(level *game.Level) {
 	for pos, items := range level.Items {
 		if level.Map[pos.Y][pos.X].Visible {
 			for _, item := range items {
-				ui.textureIndex.mu.RLock()
-				itemSrcRect := ui.textureIndex.rects[item.GetRune()][0]
-				ui.textureIndex.mu.RUnlock()
+				ui.textureIndexItems.mu.RLock()
+				itemSrcRect := ui.textureIndexItems.rects[item.GetRune()][0]
+				ui.textureIndexItems.mu.RUnlock()
 				var size int32
 				size = tileSize
 				if item.GetName() == "Potion" {
@@ -263,33 +267,32 @@ func (ui *ui) displayEvents(level *game.Level) {
 }
 
 func (ui *ui) buildAnimation(animation rune, texs ...*sdl.Rect) {
-	ui.textureIndex.rects[animation] = nil
 	for _, tex := range texs {
 		ui.animations[animation] = append(ui.animations[animation], tex)
 	}
 }
 
-func (ui *ui) displayAnimation(level *game.Level, duration time.Duration, p game.Pos, animation rune) {
+func (ui *ui) displayAnimation(level *game.Level, duration time.Duration, p game.Pos, animation rune, textureIndex *TextureIndex) {
 	tempTile := level.Map[p.Y][p.X].OverlayRune
 	level.Map[p.Y][p.X].OverlayRune = animation
 	numFrames := len(ui.animations[animation])
 
 	for start := time.Now(); time.Since(start) < duration; {
-		ui.textureIndex.mu.Lock()
 
 		for i := 0; i < numFrames; i++ {
 			if int(time.Since(start).Nanoseconds())%numFrames == i {
-				ui.textureIndex.rects[animation] = nil
-				ui.textureIndex.rects[animation] = append(ui.textureIndex.rects[animation], *ui.animations[animation][i])
+				textureIndex.mu.Lock()
+				textureIndex.rects[animation] = nil
+				textureIndex.rects[animation] = append(textureIndex.rects[animation], *ui.animations[animation][i])
+				textureIndex.mu.Unlock()
 			}
 		}
-		ui.textureIndex.mu.Unlock()
 	}
 	level.Map[p.Y][p.X].OverlayRune = tempTile
 }
 
-func (ui *ui) displayMovingAnimation(level *game.Level, duration time.Duration, animation rune, poss []game.Pos) {
+func (ui *ui) displayMovingAnimation(level *game.Level, duration time.Duration, animation rune, poss []game.Pos, textureIndex *TextureIndex) {
 	for _, pos := range poss {
-		ui.displayAnimation(level, duration, pos, animation)
+		ui.displayAnimation(level, duration, pos, animation, textureIndex)
 	}
 }

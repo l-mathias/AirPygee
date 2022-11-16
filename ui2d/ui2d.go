@@ -108,8 +108,8 @@ type ui struct {
 	uipack       *sdl.Texture
 	texturesList SubTextures
 
-	textureIndex TextureIndex
-	animations   map[rune][]*sdl.Rect
+	textureIndexTiles, textureIndexMonsters, textureIndexItems TextureIndex
+	animations                                                 map[rune][]*sdl.Rect
 
 	centerX, centerY int
 	r                *rand.Rand
@@ -161,7 +161,9 @@ func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 	ui.tileMap = ui.imgFileToTexture("ui2d/assets/tilemap.png")
 	ui.uipack = ui.imgFileToTexture("ui2d/assets/uipack_rpg_sheet.png")
 
-	ui.loadTextureIndex()
+	ui.loadTextureIndex(&ui.textureIndexTiles, "ui2d/assets/atlas-index.txt")
+	ui.loadTextureIndex(&ui.textureIndexMonsters, "ui2d/assets/atlas-index-monsters.txt")
+	ui.loadTextureIndex(&ui.textureIndexItems, "ui2d/assets/atlas-index-items.txt")
 	ui.LoadPlayer()
 	ui.loadSpritesheetFromXml()
 
@@ -229,10 +231,11 @@ func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 
 func (ui *ui) buildAnimations() {
 	ui.buildAnimation(game.AnimatedPortal, &sdl.Rect{X: 1376, Y: 320, W: tileSize, H: tileSize}, &sdl.Rect{X: 1408, Y: 320, W: tileSize, H: tileSize}, &sdl.Rect{X: 1440, Y: 320, W: tileSize, H: tileSize})
-	ui.buildAnimation(game.UpArrow, &sdl.Rect{X: 352, Y: 768, W: tileSize, H: tileSize})
-	ui.buildAnimation(game.DownArrow, &sdl.Rect{X: 480, Y: 768, W: tileSize, H: tileSize})
-	ui.buildAnimation(game.LeftArrow, &sdl.Rect{X: 544, Y: 768, W: tileSize, H: tileSize})
-	ui.buildAnimation(game.RightArrow, &sdl.Rect{X: 416, Y: 768, W: tileSize, H: tileSize})
+
+	ui.buildAnimation(game.UpAnim, &sdl.Rect{X: 352, Y: 768, W: tileSize, H: tileSize})
+	ui.buildAnimation(game.DownAnim, &sdl.Rect{X: 480, Y: 768, W: tileSize, H: tileSize})
+	ui.buildAnimation(game.LeftAnim, &sdl.Rect{X: 544, Y: 768, W: tileSize, H: tileSize})
+	ui.buildAnimation(game.RightAnim, &sdl.Rect{X: 416, Y: 768, W: tileSize, H: tileSize})
 }
 
 func (ui *ui) loadSounds() {
@@ -329,9 +332,12 @@ func (ui *ui) stringToTexture(s string, color sdl.Color, size FontSize) *sdl.Tex
 	return tex
 }
 
-func (ui *ui) loadTextureIndex() {
-	ui.textureIndex.rects = make(map[rune][]sdl.Rect)
-	infile, err := os.Open("ui2d/assets/atlas-index.txt")
+func (ui *ui) loadTextureIndex(textureIndex *TextureIndex, fileName string) {
+	//ui.textureIndexTiles.rects = make(map[rune][]sdl.Rect)
+	textureIndex.rects = make(map[rune][]sdl.Rect)
+
+	//infile, err := os.Open("ui2d/assets/atlas-index.txt")
+	infile, err := os.Open(fileName)
 	game.CheckError(err)
 
 	scanner := bufio.NewScanner(infile)
@@ -359,7 +365,8 @@ func (ui *ui) loadTextureIndex() {
 				y++
 			}
 		}
-		ui.textureIndex.rects[tileRune] = rects
+		//ui.textureIndexTiles.rects[tileRune] = rects
+		textureIndex.rects[tileRune] = rects
 	}
 
 }
@@ -465,9 +472,9 @@ func (ui *ui) draw(level *game.Level) {
 	for y, row := range level.Map {
 		for x, tile := range row {
 			if tile.Rune != game.Blank {
-				ui.textureIndex.mu.RLock()
-				srcRects := ui.textureIndex.rects[tile.Rune]
-				ui.textureIndex.mu.RUnlock()
+				ui.textureIndexTiles.mu.RLock()
+				srcRects := ui.textureIndexTiles.rects[tile.Rune]
+				ui.textureIndexTiles.mu.RUnlock()
 				srcRect := srcRects[ui.r.Intn(len(srcRects))]
 				if tile.Visible || tile.Seen {
 					dstRect := sdl.Rect{X: int32(x)*tileSize + ui.offsetX, Y: int32(y)*tileSize + ui.offsetY, W: tileSize, H: tileSize}
@@ -488,9 +495,9 @@ func (ui *ui) draw(level *game.Level) {
 
 					if tile.OverlayRune != game.Blank {
 						// TODO - if multiple variants of a tile, adapt srcRects
-						ui.textureIndex.mu.RLock()
-						srcRects = ui.textureIndex.rects[tile.OverlayRune]
-						ui.textureIndex.mu.RUnlock()
+						ui.textureIndexTiles.mu.RLock()
+						srcRects = ui.textureIndexTiles.rects[tile.OverlayRune]
+						ui.textureIndexTiles.mu.RUnlock()
 						srcRect = srcRects[0]
 
 						err = ui.renderer.Copy(ui.textureAtlas, &srcRect, &dstRect)
@@ -512,9 +519,9 @@ func (ui *ui) draw(level *game.Level) {
 	if len(level.Items[level.Player.Pos]) > 0 {
 		groundItems := level.Items[level.Player.Pos]
 		for i, item := range groundItems {
-			ui.textureIndex.mu.RLock()
-			itemSrcRect := ui.textureIndex.rects[item.GetRune()][0]
-			ui.textureIndex.mu.RUnlock()
+			ui.textureIndexItems.mu.RLock()
+			itemSrcRect := ui.textureIndexItems.rects[item.GetRune()][0]
+			ui.textureIndexItems.mu.RUnlock()
 
 			err = ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: int32(ui.winWidth) - tileSize - int32(i)*tileSize, Y: 0, W: tileSize, H: tileSize})
 			game.CheckError(err)
@@ -569,16 +576,16 @@ func (ui *ui) fire(level *game.Level, attackRange int) {
 
 	switch {
 	case firstPos.X > level.Player.X:
-		direction = game.RightArrow
+		direction = game.RightAnim
 		deltaX = 1
 	case firstPos.X < level.Player.X:
-		direction = game.LeftArrow
+		direction = game.LeftAnim
 		deltaX = -1
 	case firstPos.Y > level.Player.Y:
-		direction = game.DownArrow
+		direction = game.DownAnim
 		deltaY = 1
 	case firstPos.Y < level.Player.Y:
-		direction = game.UpArrow
+		direction = game.UpAnim
 		deltaY = -1
 	}
 
@@ -586,16 +593,16 @@ func (ui *ui) fire(level *game.Level, attackRange int) {
 		x := level.Player.X + deltaX*i
 		y := level.Player.Y + deltaY*i
 
-		if x < 0 {
+		if x < 0 || !level.Map[y][x].Walkable {
 			break
 		}
-		if y < 0 {
+		if y < 0 || !level.Map[y][x].Walkable {
 			break
 		}
 
 		positions = append(positions, game.Pos{X: x, Y: y})
 	}
-	go ui.displayMovingAnimation(level, 500*time.Millisecond, direction, positions)
+	go ui.displayMovingAnimation(level, 500*time.Millisecond, direction, positions, &ui.textureIndexTiles)
 }
 
 // Run main UI loop

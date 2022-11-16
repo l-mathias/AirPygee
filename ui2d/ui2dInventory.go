@@ -149,9 +149,9 @@ func (ui *ui) drawInventory(level *game.Level) {
 	}
 
 	for i, item := range level.Player.EquippedItems {
-		ui.textureIndex.mu.RLock()
-		itemSrcRect := ui.textureIndex.rects[item.GetRune()][0]
-		ui.textureIndex.mu.RUnlock()
+		ui.textureIndexItems.mu.RLock()
+		itemSrcRect := ui.textureIndexItems.rects[item.GetRune()][0]
+		ui.textureIndexItems.mu.RUnlock()
 
 		switch item.GetEntity().Location {
 		case game.Head:
@@ -191,9 +191,9 @@ func (ui *ui) drawInventory(level *game.Level) {
 	var countX int32 = 0
 	var countY int32 = 0
 	for _, item := range level.Player.Items {
-		ui.textureIndex.mu.RLock()
-		itemSrcRect := ui.textureIndex.rects[item.GetRune()][0]
-		ui.textureIndex.mu.RUnlock()
+		ui.textureIndexItems.mu.RLock()
+		itemSrcRect := ui.textureIndexItems.rects[item.GetRune()][0]
+		ui.textureIndexItems.mu.RUnlock()
 		if countX%5 == 0 {
 			countX = 0
 			countY++
