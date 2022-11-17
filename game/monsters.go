@@ -31,16 +31,34 @@ func randomizeLoot() *[]Item {
 
 	for i := 0; i < numItems; i++ {
 		rand.Seed(time.Now().UnixNano())
-		switch rand.Intn(2) {
+		switch rand.Intn(3) {
 		case 0:
 			items = append(items, NewSword(Pos{}))
 		case 1:
 			items = append(items, NewHelmet(Pos{}))
 		case 2:
 			items = append(items, NewHealthPotion(Pos{}, "Small"))
+		case 3:
+			items = append(items, NewBoots(Pos{}))
 		}
 	}
 	return &items
+}
+
+func NewBat(p Pos) *Monster {
+	items := randomizeLoot()
+	return &Monster{Character{
+		Entity:       Entity{Pos: p, Name: "Bat", Rune: Bat},
+		Health:       50,
+		MaxHealth:    50,
+		MinDamage:    2,
+		MaxDamage:    3,
+		Critical:     0,
+		Armor:        0,
+		Speed:        2.0,
+		ActionPoints: 0.0,
+		Items:        *items,
+	}}
 }
 
 func NewRat(p Pos) *Monster {

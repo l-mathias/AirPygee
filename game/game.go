@@ -78,6 +78,7 @@ const (
 const (
 	Rat    rune = 'R'
 	Spider rune = 'S'
+	Bat    rune = 'B'
 )
 
 // Overlay tiles
@@ -108,11 +109,10 @@ type LevelPos struct {
 
 type Entity struct {
 	Pos
-	CameFrom Pos
-	WantedTo Pos
-	Name     string
-	Rune     rune
-	Location
+	CameFrom    Pos
+	WantedTo    Pos
+	Name        string
+	Rune        rune
 	Type        ItemType
 	Description string
 }
@@ -128,7 +128,7 @@ type Character struct {
 	Speed         float64
 	ActionPoints  float64
 	SightRange    int
-	EquippedItems []Item
+	EquippedItems []EquipableItem
 	Items         []Item
 	InventorySize int
 }
@@ -662,11 +662,17 @@ func (game *Game) loadLevels() map[string]*Level {
 				case 'h':
 					level.Items[pos] = append(level.Items[pos], NewHelmet(pos))
 					level.Map[y][x].Rune = Pending
+				case 'b':
+					level.Items[pos] = append(level.Items[pos], NewBoots(pos))
+					level.Map[y][x].Rune = Pending
 				case 'p':
 					level.Items[pos] = append(level.Items[pos], NewHealthPotion(pos, "Small"))
 					level.Map[y][x].Rune = Pending
 				case '@':
 					level.Player.Pos = pos
+					level.Map[y][x].Rune = Pending
+				case 'B':
+					level.Monsters[pos] = NewBat(pos)
 					level.Map[y][x].Rune = Pending
 				case 'R':
 					level.Monsters[pos] = NewRat(pos)

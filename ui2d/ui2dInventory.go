@@ -105,7 +105,6 @@ func (ui *ui) menuInventory(level *game.Level) {
 }
 
 func (ui *ui) drawInventory(level *game.Level) {
-	//fmt.Println(time.Now().String() + " drawInventory")
 	var locationX, locationY int32
 
 	playerSrcRect := sdl.Rect{X: 0, Y: 0, W: 26, H: 36}
@@ -153,7 +152,7 @@ func (ui *ui) drawInventory(level *game.Level) {
 		itemSrcRect := ui.textureIndexItems.rects[item.GetRune()][0]
 		ui.textureIndexItems.mu.RUnlock()
 
-		switch item.GetEntity().Location {
+		switch item.GetLocation() {
 		case game.Head:
 			locationX = ui.invHeadX
 			locationY = ui.invHeadY
@@ -271,26 +270,29 @@ func (ui *ui) getInventoryItemRect(id int, level *game.Level) *sdl.Rect {
 // rectangle in order to compare with click position and then unequip
 func (ui *ui) getEquippedItemRect(item game.Item) *sdl.Rect {
 	var locationX, locationY int32
-
-	switch item.GetEntity().Location {
-	case game.Head:
-		locationX = ui.invHeadX
-		locationY = ui.invHeadY
-	case game.Foots:
-		locationX = ui.invFootsX
-		locationY = ui.invFootsY
-	case game.LeftHand:
-		locationX = ui.invLHandX
-		locationY = ui.invLHandY
-	case game.RightHand:
-		locationX = ui.invRHandX
-		locationY = ui.invRHandY
-	case game.Chest:
-		locationX = ui.invChestX
-		locationY = ui.invChestY
-	case game.Legs:
-		locationX = ui.invLegsX
-		locationY = ui.invLegsY
+	switch item.(type) {
+	case game.EquipableItem:
+		switch item.(game.EquipableItem).GetLocation() {
+		case game.Head:
+			locationX = ui.invHeadX
+			locationY = ui.invHeadY
+		case game.Foots:
+			locationX = ui.invFootsX
+			locationY = ui.invFootsY
+		case game.LeftHand:
+			locationX = ui.invLHandX
+			locationY = ui.invLHandY
+		case game.RightHand:
+			locationX = ui.invRHandX
+			locationY = ui.invRHandY
+		case game.Chest:
+			locationX = ui.invChestX
+			locationY = ui.invChestY
+		case game.Legs:
+			locationX = ui.invLegsX
+			locationY = ui.invLegsY
+		}
+	default:
 	}
 
 	return &sdl.Rect{X: locationX, Y: locationY, W: ui.itemW, H: ui.itemH}
@@ -322,7 +324,7 @@ func (ui *ui) clickValidItem(level *game.Level, mouseX, mouseY int32) game.Item 
 
 func (ui *ui) isSlotFree(level *game.Level, itemToEquip game.Item) bool {
 	for _, item := range level.Player.EquippedItems {
-		if itemToEquip.GetEntity().Location == item.GetEntity().Location {
+		if itemToEquip.(game.EquipableItem).GetLocation() == item.GetLocation() {
 			return false
 		}
 	}

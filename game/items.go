@@ -50,6 +50,7 @@ type EquipableItem interface {
 	GetStats() *EquipableItemStats
 	GetRarity() Rarity
 	ToString(Rarity) string
+	GetLocation() Location
 }
 
 type ConsumableItem interface {
@@ -68,6 +69,7 @@ type Weapon struct {
 	Entity
 	EquipableItemStats
 	Equipped bool
+	Location
 	Rarity
 }
 
@@ -120,15 +122,23 @@ func (w *Weapon) ToString(rarity Rarity) string {
 	}
 	return ""
 }
+func (w *Weapon) GetLocation() Location {
+	return w.Location
+}
 
 type Armor struct {
 	Entity
 	EquipableItemStats
 	Equipped bool
 	Rarity
+	Location
 }
 
 type Helmet struct {
+	Armor
+}
+
+type Boots struct {
 	Armor
 }
 
@@ -176,6 +186,9 @@ func (a *Armor) ToString(rarity Rarity) string {
 		return "Legendary"
 	}
 	return ""
+}
+func (a *Armor) GetLocation() Location {
+	return a.Location
 }
 
 type Potion struct {
@@ -260,11 +273,33 @@ func NewSword(p Pos) *Sword {
 			Rune:        's',
 			Type:        Weapons,
 			Description: "A common sword...",
-			Location:    RightHand,
 		},
+			Location:           RightHand,
 			Rarity:             rarity,
 			EquipableItemStats: *stats,
 		}}
+}
+
+func NewBoots(p Pos) *Boots {
+	rarity := randomizeRarity()
+	stats := randomizeStats(rarity, &EquipableItemStats{
+		MinDamage: 0,
+		MaxDamage: 0,
+		Armor:     5,
+		Critical:  0,
+	})
+	return &Boots{Armor: Armor{
+		Entity: Entity{
+			Pos:         p,
+			Name:        "Boots",
+			Rune:        'b',
+			Type:        Armors,
+			Description: "Common boots...",
+		},
+		Location:           Foots,
+		Rarity:             rarity,
+		EquipableItemStats: *stats,
+	}}
 }
 
 func NewHelmet(p Pos) *Helmet {
@@ -282,8 +317,8 @@ func NewHelmet(p Pos) *Helmet {
 			Rune:        'h',
 			Type:        Armors,
 			Description: "A common helmet...",
-			Location:    Head,
 		},
+		Location:           Head,
 		Rarity:             rarity,
 		EquipableItemStats: *stats,
 	}}
@@ -295,7 +330,6 @@ func NewHealthPotion(p Pos, size string) *Potion {
 			Pos:         p,
 			Name:        "Potion",
 			Rune:        'p',
-			Location:    NoLoc,
 			Type:        Potions,
 			Description: "A small health potion...",
 		},
@@ -355,9 +389,9 @@ func (game *Game) unEquip(itemToUnEquip EquipableItem) {
 	}
 }
 
-func (game *Game) slotFreeToEquip(itemToCheck Item) bool {
+func (game *Game) slotFreeToEquip(itemToCheck EquipableItem) bool {
 	for _, item := range game.CurrentLevel.Player.EquippedItems {
-		if item.GetEntity().Location == itemToCheck.GetEntity().Location {
+		if item.(EquipableItem).GetLocation() == itemToCheck.GetLocation() {
 			return false
 		}
 	}
