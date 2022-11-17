@@ -53,6 +53,7 @@ type InputType int
 type Tile struct {
 	Rune        rune
 	OverlayRune rune
+	AnimRune    rune
 	Visible     bool
 	Seen        bool
 	Walkable    bool
@@ -81,10 +82,14 @@ const (
 
 // Overlay tiles
 const (
-	ClosedDoor     rune = '|'
-	OpenDoor       rune = '/'
-	DownStair      rune = 'd'
-	UpStair        rune = 'u'
+	ClosedDoor rune = '|'
+	OpenDoor   rune = '/'
+	DownStair  rune = 'd'
+	UpStair    rune = 'u'
+)
+
+// animations
+const (
 	LeftAnim       rune = 'L'
 	RightAnim      rune = 'R'
 	DownAnim       rune = 'D'
@@ -141,16 +146,23 @@ const (
 	ConsumePotion
 )
 
+type GameAttack struct {
+	Damage     int
+	IsCritical bool
+	Who        *Character
+}
+
 type Level struct {
-	Map       [][]Tile
-	Player    *Player
-	Monsters  map[Pos]*Monster
-	Portals   map[Pos]*LevelPos
-	Items     map[Pos][]Item
-	Events    []string
-	EventPos  int
-	Debug     map[Pos]bool
-	LastEvent GameEvent
+	Map        [][]Tile
+	Player     *Player
+	Monsters   map[Pos]*Monster
+	Portals    map[Pos]*LevelPos
+	Items      map[Pos][]Item
+	Events     []string
+	EventPos   int
+	Debug      map[Pos]bool
+	LastEvent  GameEvent
+	LastAttack GameAttack
 }
 
 func (c *Character) Pass() {
@@ -180,25 +192,33 @@ func isCritical(crit float64) bool {
 	rand.Seed(time.Now().UnixNano())
 	res := rand.Intn(100)
 
-	fmt.Println("crit value : ", crit)
-	fmt.Println(res)
 	return float64(res) <= crit
 }
 
 func (level *Level) Attack(c1, c2 *Character) {
 	c1.ActionPoints--
 	c1AttackPower := randomizeDamage(c1.MinDamage, c1.MaxDamage)
+	damageDealt := c1AttackPower - c2.Armor
+	if damageDealt < 0 {
+		damageDealt = 0
+	}
+
+	level.LastAttack.Who = c2
 	if isCritical(c1.Critical) {
 		c1AttackPower *= 2
+		level.LastAttack.IsCritical = true
+	} else {
+		level.LastAttack.IsCritical = false
 	}
-	c2.Health -= c1AttackPower - c2.Armor
+	c2.Health -= damageDealt
+	level.LastAttack.Damage = damageDealt
 
 	if c2.Health > 0 {
-		level.AddEvent(c1.Name + " attacked " + c2.Name + " for " + strconv.Itoa(c1AttackPower))
-		level.LastEvent = Attack
+		level.AddEvent(c1.Name + " attacked " + c2.Name + " for " + strconv.Itoa(damageDealt))
 	} else {
 		level.AddEvent(c1.Name + " killed " + c2.Name)
 	}
+	level.LastEvent = Attack
 }
 
 func (level *Level) lineOfSight() {
@@ -611,6 +631,7 @@ func (game *Game) loadLevels() map[string]*Level {
 				pos := Pos{X: x, Y: y}
 				level.Map[y][x].Walkable = true
 				level.Map[y][x].Actionable = false
+				level.Map[y][x].AnimRune = Blank
 				switch c {
 				case ' ', '\n', '\t', '\r':
 					level.Map[y][x].Rune = Blank

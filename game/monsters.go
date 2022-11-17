@@ -47,8 +47,8 @@ func NewRat(p Pos) *Monster {
 	items := randomizeLoot()
 	return &Monster{Character{
 		Entity:       Entity{Pos: p, Name: "Rat", Rune: Rat},
-		Health:       5,
-		MaxHealth:    5,
+		Health:       50,
+		MaxHealth:    50,
 		MinDamage:    1,
 		MaxDamage:    2,
 		Critical:     0,

@@ -8,6 +8,7 @@ import (
 	"AirPygee/game"
 	"bufio"
 	"encoding/xml"
+	"fmt"
 	"github.com/veandco/go-sdl2/img"
 	"github.com/veandco/go-sdl2/mix"
 	"github.com/veandco/go-sdl2/sdl"
@@ -84,6 +85,17 @@ type TextureIndex struct {
 	rects map[rune][]sdl.Rect
 }
 
+type Damage struct {
+	pos        game.Pos
+	tex        *sdl.Texture
+	isCritical bool
+}
+
+type StrToTex struct {
+	mu   sync.RWMutex
+	texs map[coloredFont]*sdl.Texture
+}
+
 type ui struct {
 	state               uiState
 	sounds              sounds
@@ -108,8 +120,11 @@ type ui struct {
 	uipack       *sdl.Texture
 	texturesList SubTextures
 
-	textureIndexTiles, textureIndexMonsters, textureIndexItems TextureIndex
-	animations                                                 map[rune][]*sdl.Rect
+	textureIndexTiles, textureIndexMonsters, textureIndexItems, textureIndexAnims TextureIndex
+
+	//animations
+	animations       map[rune][]*sdl.Rect
+	damagesToDisplay map[string]*Damage
 
 	centerX, centerY int
 	r                *rand.Rand
@@ -130,7 +145,7 @@ type ui struct {
 
 	// Fonts
 	fontSmall, fontMedium, fontLarge          *ttf.Font
-	str2TexSmall, str2TexMedium, str2TexLarge map[coloredFont]*sdl.Texture
+	str2TexSmall, str2TexMedium, str2TexLarge StrToTex
 	//Main Menu
 	menuButtons []*menuButton
 }
@@ -140,10 +155,11 @@ func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 	ui.state = UIMain
 	ui.inputChan = inputChan
 	ui.levelChan = levelChan
-	ui.str2TexSmall = make(map[coloredFont]*sdl.Texture)
-	ui.str2TexMedium = make(map[coloredFont]*sdl.Texture)
-	ui.str2TexLarge = make(map[coloredFont]*sdl.Texture)
+	ui.str2TexSmall.texs = make(map[coloredFont]*sdl.Texture)
+	ui.str2TexMedium.texs = make(map[coloredFont]*sdl.Texture)
+	ui.str2TexLarge.texs = make(map[coloredFont]*sdl.Texture)
 	ui.animations = make(map[rune][]*sdl.Rect)
+	ui.damagesToDisplay = make(map[string]*Damage)
 	ui.r = rand.New(rand.NewSource(1))
 	ui.winWidth = 1280
 	ui.winHeight = 720
@@ -164,6 +180,7 @@ func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 	ui.loadTextureIndex(&ui.textureIndexTiles, "ui2d/assets/atlas-index.txt")
 	ui.loadTextureIndex(&ui.textureIndexMonsters, "ui2d/assets/atlas-index-monsters.txt")
 	ui.loadTextureIndex(&ui.textureIndexItems, "ui2d/assets/atlas-index-items.txt")
+	ui.loadTextureIndex(&ui.textureIndexAnims, "ui2d/assets/atlas-index-anims.txt")
 	ui.LoadPlayer()
 	ui.loadSpritesheetFromXml()
 
@@ -297,19 +314,28 @@ func (ui *ui) stringToTexture(s string, color sdl.Color, size FontSize) *sdl.Tex
 	switch size {
 	case FontSmall:
 		font = ui.fontSmall
-		if tex, exists := ui.str2TexSmall[coloredFont]; exists {
+		ui.str2TexSmall.mu.RLock()
+		if tex, exists := ui.str2TexSmall.texs[coloredFont]; exists {
+			ui.str2TexSmall.mu.RUnlock()
 			return tex
 		}
+		ui.str2TexSmall.mu.RUnlock()
 	case FontMedium:
 		font = ui.fontMedium
-		if tex, exists := ui.str2TexMedium[coloredFont]; exists {
+		ui.str2TexMedium.mu.RLock()
+		if tex, exists := ui.str2TexMedium.texs[coloredFont]; exists {
+			ui.str2TexMedium.mu.RUnlock()
 			return tex
 		}
+		ui.str2TexMedium.mu.RUnlock()
 	case FontLarge:
 		font = ui.fontLarge
-		if tex, exists := ui.str2TexLarge[coloredFont]; exists {
+		ui.str2TexLarge.mu.RLock()
+		if tex, exists := ui.str2TexLarge.texs[coloredFont]; exists {
+			ui.str2TexLarge.mu.RUnlock()
 			return tex
 		}
+		ui.str2TexLarge.mu.RUnlock()
 	}
 	fontSurface, err := font.RenderUTF8Blended(s, color)
 	if err != nil {
@@ -322,21 +348,25 @@ func (ui *ui) stringToTexture(s string, color sdl.Color, size FontSize) *sdl.Tex
 
 	switch size {
 	case FontSmall:
-		ui.str2TexSmall[coloredFont] = tex
+		ui.str2TexSmall.mu.Lock()
+		ui.str2TexSmall.texs[coloredFont] = tex
+		ui.str2TexSmall.mu.Unlock()
 	case FontMedium:
-		ui.str2TexMedium[coloredFont] = tex
+		ui.str2TexMedium.mu.Lock()
+		ui.str2TexMedium.texs[coloredFont] = tex
+		ui.str2TexMedium.mu.Unlock()
 	case FontLarge:
-		ui.str2TexLarge[coloredFont] = tex
+		ui.str2TexLarge.mu.Lock()
+		ui.str2TexLarge.texs[coloredFont] = tex
+		ui.str2TexLarge.mu.Unlock()
 	}
 
 	return tex
 }
 
 func (ui *ui) loadTextureIndex(textureIndex *TextureIndex, fileName string) {
-	//ui.textureIndexTiles.rects = make(map[rune][]sdl.Rect)
 	textureIndex.rects = make(map[rune][]sdl.Rect)
 
-	//infile, err := os.Open("ui2d/assets/atlas-index.txt")
 	infile, err := os.Open(fileName)
 	game.CheckError(err)
 
@@ -365,7 +395,6 @@ func (ui *ui) loadTextureIndex(textureIndex *TextureIndex, fileName string) {
 				y++
 			}
 		}
-		//ui.textureIndexTiles.rects[tileRune] = rects
 		textureIndex.rects[tileRune] = rects
 	}
 
@@ -503,6 +532,17 @@ func (ui *ui) draw(level *game.Level) {
 						err = ui.renderer.Copy(ui.textureAtlas, &srcRect, &dstRect)
 						game.CheckError(err)
 					}
+
+					// display current running animation if running
+					if tile.AnimRune != game.Blank {
+						ui.textureIndexAnims.mu.RLock()
+						srcRects = ui.textureIndexAnims.rects[tile.AnimRune]
+						ui.textureIndexAnims.mu.RUnlock()
+						srcRect = srcRects[0]
+
+						err = ui.renderer.Copy(ui.textureAtlas, &srcRect, &dstRect)
+						game.CheckError(err)
+					}
 				}
 			}
 		}
@@ -514,6 +554,7 @@ func (ui *ui) draw(level *game.Level) {
 	ui.displayHUD(level)
 	ui.displayStats(level)
 	ui.displayEvents(level)
+	ui.displayDamages()
 
 	// display item we are on top of
 	if len(level.Items[level.Player.Pos]) > 0 {
@@ -602,7 +643,7 @@ func (ui *ui) fire(level *game.Level, attackRange int) {
 
 		positions = append(positions, game.Pos{X: x, Y: y})
 	}
-	go ui.displayMovingAnimation(level, 500*time.Millisecond, direction, positions, &ui.textureIndexTiles)
+	go ui.displayMovingAnimation(level, 500*time.Millisecond, direction, positions, &ui.textureIndexAnims)
 }
 
 // Run main UI loop
@@ -626,6 +667,8 @@ func (ui *ui) Run() {
 					playRandomSound(ui.sounds.closeDoor, ui.soundsVolume)
 				case game.Attack:
 					playRandomSound(ui.sounds.swing, ui.soundsVolume)
+					fmt.Println("last attack : ", newLevel.LastAttack.Damage, newLevel.LastAttack.Who.Name)
+					go ui.addAttackResult(newLevel.LastAttack.Damage, 500*time.Millisecond, newLevel.LastAttack.IsCritical, game.Pos{X: newLevel.LastAttack.Who.X, Y: newLevel.LastAttack.Who.Y - 1}, newLevel.LastAttack.Who)
 				case game.Pickup:
 					playRandomSound(ui.sounds.pickup, ui.soundsVolume)
 				case game.ConsumePotion:
