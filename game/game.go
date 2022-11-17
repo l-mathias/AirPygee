@@ -41,7 +41,7 @@ func NewGame(numWindows int) *Game {
 	for i := range levelChans {
 		levelChans[i] = make(chan *Level)
 	}
-	inputChan := make(chan *Input, 20)
+	inputChan := make(chan *Input, 10)
 
 	game := &Game{levelChans, inputChan, nil, nil}
 

@@ -666,7 +666,7 @@ func (ui *ui) Run() {
 					playRandomSound(ui.sounds.closeDoor, ui.soundsVolume)
 				case game.Attack:
 					playRandomSound(ui.sounds.swing, ui.soundsVolume)
-					go ui.addAttackResult(newLevel.LastAttack.Damage, 500*time.Millisecond, newLevel.LastAttack.IsCritical, game.Pos{X: newLevel.LastAttack.Who.X, Y: newLevel.LastAttack.Who.Y - 1}, newLevel.LastAttack.Who)
+					go ui.addAttackResult(newLevel.LastAttack.Damage, 500*time.Millisecond, newLevel.LastAttack.IsCritical, game.Pos{X: newLevel.LastAttack.Who.X, Y: newLevel.LastAttack.Who.Y - 1})
 				case game.Pickup:
 					playRandomSound(ui.sounds.pickup, ui.soundsVolume)
 				case game.ConsumePotion:

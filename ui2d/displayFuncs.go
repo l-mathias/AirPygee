@@ -321,7 +321,7 @@ func (ui *ui) displayMovingAnimation(level *game.Level, duration time.Duration, 
 	}
 }
 
-func (ui *ui) addAttackResult(damage int, duration time.Duration, isCritical bool, p game.Pos, who *game.Character) {
+func (ui *ui) addAttackResult(damage int, duration time.Duration, isCritical bool, p game.Pos) {
 	now := time.Now().String()
 
 	tex := ui.stringToTexture(strconv.Itoa(damage), sdl.Color{R: 255}, FontMedium)
