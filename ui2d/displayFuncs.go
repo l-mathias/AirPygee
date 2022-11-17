@@ -56,6 +56,20 @@ func (ui *ui) displayStats(level *game.Level) {
 
 }
 
+func (ui *ui) getColorFromHealth(health float64) (r, g, b, a uint8) {
+	switch {
+	case health <= 0.25:
+		return 255, 0, 0, 0
+	case health <= 0.50:
+		return 255, 255, 0, 0
+	case health <= 0.75:
+		return 0, 255, 0, 0
+	case health <= 1:
+		return 0, 150, 0, 0
+	}
+	return 0, 0, 0, 0
+}
+
 // displayHUD draws general UI with remaining hit points and game instructions
 func (ui *ui) displayHUD(level *game.Level) {
 	//TODO - fix hardcoded value here
@@ -76,15 +90,19 @@ func (ui *ui) displayHUD(level *game.Level) {
 	game.CheckError(err)
 
 	// Life gauge using red rect on black rect
-	err = ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 928, Y: 1600, W: tileSize, H: tileSize}, &sdl.Rect{X: int32(level.Player.Pos.X)*tileSize + ui.offsetX, Y: int32(level.Player.Pos.Y-1)*tileSize + ui.offsetY + 20, W: tileSize, H: 5})
+	err = ui.renderer.FillRect(&sdl.Rect{X: int32(level.Player.Pos.X)*tileSize + ui.offsetX, Y: int32(level.Player.Pos.Y-1)*tileSize + ui.offsetY + 20, W: tileSize, H: 5})
 	game.CheckError(err)
 
 	var gauge float64
 	gauge = float64(level.Player.Health) / float64(level.Player.MaxHealth)
 
-	err = ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 1024, Y: 1600, W: tileSize, H: tileSize}, &sdl.Rect{X: int32(level.Player.Pos.X)*tileSize + ui.offsetX, Y: int32(level.Player.Pos.Y-1)*tileSize + ui.offsetY + 20, W: int32(float64(tileSize) * gauge), H: 5})
+	err = ui.renderer.SetDrawColor(ui.getColorFromHealth(gauge))
 	game.CheckError(err)
 
+	err = ui.renderer.FillRect(&sdl.Rect{X: int32(level.Player.Pos.X)*tileSize + ui.offsetX, Y: int32(level.Player.Pos.Y-1)*tileSize + ui.offsetY + 20, W: int32(float64(tileSize) * gauge), H: 5})
+	game.CheckError(err)
+	err = ui.renderer.SetDrawColor(0, 0, 0, 0)
+	game.CheckError(err)
 }
 
 func (ui *ui) displayPopupItem(item game.Item, mouseX, mouseY int32) {
@@ -177,20 +195,25 @@ func (ui *ui) displayMonsters(level *game.Level) {
 	}
 	for pos, monster := range level.Monsters {
 		if level.Map[pos.Y][pos.X].Visible {
-
-			err := ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 928, Y: 1600, W: tileSize, H: tileSize}, &sdl.Rect{X: int32(level.Monsters[pos].X)*tileSize + ui.offsetX, Y: int32(level.Monsters[pos].Y-1)*tileSize + ui.offsetY + 20, W: tileSize, H: 5})
+			err := ui.renderer.FillRect(&sdl.Rect{X: int32(level.Monsters[pos].X)*tileSize + ui.offsetX, Y: int32(level.Monsters[pos].Y-1)*tileSize + ui.offsetY + 20, W: tileSize, H: 5})
 			game.CheckError(err)
 
 			var gauge float64
 			gauge = float64(level.Monsters[pos].Health) / float64(level.Monsters[pos].MaxHealth)
 
+			err = ui.renderer.SetDrawColor(ui.getColorFromHealth(gauge))
+			game.CheckError(err)
+
 			// health bar
-			err = ui.renderer.Copy(ui.textureAtlas, &sdl.Rect{X: 1024, Y: 1600, W: tileSize, H: tileSize}, &sdl.Rect{X: int32(level.Monsters[pos].X)*tileSize + ui.offsetX, Y: int32(level.Monsters[pos].Y-1)*tileSize + ui.offsetY + 20, W: int32(float64(tileSize) * gauge), H: 5})
+			err = ui.renderer.FillRect(&sdl.Rect{X: int32(level.Monsters[pos].X)*tileSize + ui.offsetX, Y: int32(level.Monsters[pos].Y-1)*tileSize + ui.offsetY + 20, W: int32(float64(tileSize) * gauge), H: 5})
 			game.CheckError(err)
 
 			ui.textureIndexMonsters.mu.RLock()
 			monsterSrcRect := ui.textureIndexMonsters.rects[monster.Rune][0]
 			ui.textureIndexMonsters.mu.RUnlock()
+
+			err = ui.renderer.SetDrawColor(0, 0, 0, 0)
+			game.CheckError(err)
 
 			err = ui.renderer.Copy(ui.textureAtlas, &monsterSrcRect, &sdl.Rect{X: int32(pos.X)*tileSize + ui.offsetX, Y: int32(pos.Y)*tileSize + ui.offsetY, W: tileSize, H: tileSize})
 			game.CheckError(err)

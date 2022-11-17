@@ -8,7 +8,6 @@ import (
 	"AirPygee/game"
 	"bufio"
 	"encoding/xml"
-	"fmt"
 	"github.com/veandco/go-sdl2/img"
 	"github.com/veandco/go-sdl2/mix"
 	"github.com/veandco/go-sdl2/sdl"
@@ -667,7 +666,6 @@ func (ui *ui) Run() {
 					playRandomSound(ui.sounds.closeDoor, ui.soundsVolume)
 				case game.Attack:
 					playRandomSound(ui.sounds.swing, ui.soundsVolume)
-					fmt.Println("last attack : ", newLevel.LastAttack.Damage, newLevel.LastAttack.Who.Name)
 					go ui.addAttackResult(newLevel.LastAttack.Damage, 500*time.Millisecond, newLevel.LastAttack.IsCritical, game.Pos{X: newLevel.LastAttack.Who.X, Y: newLevel.LastAttack.Who.Y - 1}, newLevel.LastAttack.Who)
 				case game.Pickup:
 					playRandomSound(ui.sounds.pickup, ui.soundsVolume)
