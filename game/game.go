@@ -2,17 +2,17 @@ package game
 
 import (
 	"bufio"
+	"crypto/rand"
 	"encoding/csv"
 	"fmt"
 	"math"
-	"math/rand"
+	"math/big"
 	"os"
 	"path/filepath"
 	"strconv"
-	"time"
 )
 
-// TODO - improve loadWorld loadLevels - one should call the other one
+//TODO - improve loadWorld loadLevels - one should call the other one
 
 const (
 	None InputType = iota
@@ -184,15 +184,20 @@ func (level *Level) MoveItem(itemToMove Item, character *Character) {
 }
 
 func randomizeDamage(min, max int) int {
-	rand.Seed(time.Now().UnixNano())
-	return rand.Intn(max-min+1) + min
+	number, err := rand.Int(rand.Reader, big.NewInt(int64(max-min+1)))
+	CheckError(err)
+	return int(number.Int64()) + min
+	//rand.Seed(time.Now().UnixNano())
+	//return rand.Intn(max-min+1) + min
 }
 
 func isCritical(crit float64) bool {
-	rand.Seed(time.Now().UnixNano())
-	res := rand.Intn(100)
+	number, err := rand.Int(rand.Reader, big.NewInt(100))
+	CheckError(err)
+	//rand.Seed(time.Now().UnixNano())
+	//res := rand.Intn(100)
 
-	return float64(res) <= crit
+	return float64(number.Int64()) <= crit
 }
 
 func (level *Level) Attack(c1, c2 *Character) {
@@ -664,6 +669,9 @@ func (game *Game) loadLevels() map[string]*Level {
 					level.Map[y][x].Rune = Pending
 				case 'b':
 					level.Items[pos] = append(level.Items[pos], NewBoots(pos))
+					level.Map[y][x].Rune = Pending
+				case 'a':
+					level.Items[pos] = append(level.Items[pos], NewPlate(pos))
 					level.Map[y][x].Rune = Pending
 				case 'p':
 					level.Items[pos] = append(level.Items[pos], NewHealthPotion(pos, "Small"))

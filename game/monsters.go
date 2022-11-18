@@ -1,8 +1,8 @@
 package game
 
 import (
-	"math/rand"
-	"time"
+	"crypto/rand"
+	"math/big"
 )
 
 type Monster struct {
@@ -13,25 +13,26 @@ func randomizeLoot() *[]Item {
 	items := make([]Item, 0)
 	numItems := 0
 
-	rand.Seed(time.Now().UnixNano())
-	number := rand.Intn(100)
+	number, err := rand.Int(rand.Reader, big.NewInt(100))
+	CheckError(err)
 
 	switch {
-	case number <= 2:
+	case number.Int64() <= 2:
 		numItems = 4
-	case number > 2 && number <= 10:
+	case number.Int64() > 2 && number.Int64() <= 10:
 		numItems = 3
-	case number > 10 && number <= 20:
+	case number.Int64() > 10 && number.Int64() <= 20:
 		numItems = 2
-	case number > 20 && number <= 40:
+	case number.Int64() > 20 && number.Int64() <= 40:
 		numItems = 1
-	case number > 40 && number <= 100:
+	case number.Int64() > 40 && number.Int64() <= 100:
 		numItems = 0
 	}
 
 	for i := 0; i < numItems; i++ {
-		rand.Seed(time.Now().UnixNano())
-		switch rand.Intn(3) {
+		number, err = rand.Int(rand.Reader, big.NewInt(100))
+		CheckError(err)
+		switch number.Int64() {
 		case 0:
 			items = append(items, NewSword(Pos{}))
 		case 1:
@@ -40,6 +41,8 @@ func randomizeLoot() *[]Item {
 			items = append(items, NewHealthPotion(Pos{}, "Small"))
 		case 3:
 			items = append(items, NewBoots(Pos{}))
+		case 4:
+			items = append(items, NewPlate(Pos{}))
 		}
 	}
 	return &items

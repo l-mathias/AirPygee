@@ -1,15 +1,14 @@
 package game
 
 import (
-	"math/rand"
-	"time"
+	"crypto/rand"
+	"math/big"
 )
 
 type Location int
 
 const (
-	NoLoc Location = iota
-	Foots
+	Foots Location = iota
 	LeftHand
 	RightHand
 	Head
@@ -65,157 +64,7 @@ type EquipableItemStats struct {
 	Critical  float64
 }
 
-type Weapon struct {
-	Entity
-	EquipableItemStats
-	Equipped bool
-	Location
-	Rarity
-}
-
-type Sword struct {
-	Weapon
-}
-
-func (w *Weapon) GetDescription() string {
-	return w.Description
-}
-func (w *Weapon) GetName() string {
-	return w.Name
-}
-func (w *Weapon) GetRune() rune {
-	return w.Rune
-}
-func (w *Weapon) IsEquipped() bool {
-	return w.Equipped
-}
-func (w *Weapon) Equip() {
-	w.Equipped = true
-}
-func (w *Weapon) UnEquip() {
-	w.Equipped = false
-}
-func (w *Weapon) GetEntity() *Entity {
-	return &w.Entity
-}
-func (w *Weapon) SetPos(pos Pos) {
-	w.Pos = pos
-}
-func (w *Weapon) GetRarity() Rarity {
-	return w.Rarity
-}
-func (w *Weapon) GetStats() *EquipableItemStats {
-	return &w.EquipableItemStats
-}
-func (w *Weapon) ToString(rarity Rarity) string {
-	switch rarity {
-	case Common:
-		return "Common"
-	case Uncommon:
-		return "Uncommon"
-	case Rare:
-		return "Rare"
-	case Epic:
-		return "Epic"
-	case Legendary:
-		return "Legendary"
-	}
-	return ""
-}
-func (w *Weapon) GetLocation() Location {
-	return w.Location
-}
-
-type Armor struct {
-	Entity
-	EquipableItemStats
-	Equipped bool
-	Rarity
-	Location
-}
-
-type Helmet struct {
-	Armor
-}
-
-type Boots struct {
-	Armor
-}
-
-func (a *Armor) GetDescription() string {
-	return a.Description
-}
-func (a *Armor) GetName() string {
-	return a.Name
-}
-func (a *Armor) GetRune() rune {
-	return a.Rune
-}
-func (a *Armor) IsEquipped() bool {
-	return a.Equipped
-}
-func (a *Armor) Equip() {
-	a.Equipped = true
-}
-func (a *Armor) UnEquip() {
-	a.Equipped = false
-}
-func (a *Armor) GetEntity() *Entity {
-	return &a.Entity
-}
-func (a *Armor) SetPos(pos Pos) {
-	a.Pos = pos
-}
-func (a *Armor) GetRarity() Rarity {
-	return a.Rarity
-}
-func (a *Armor) GetStats() *EquipableItemStats {
-	return &a.EquipableItemStats
-}
-func (a *Armor) ToString(rarity Rarity) string {
-	switch rarity {
-	case Common:
-		return "Common"
-	case Uncommon:
-		return "Uncommon"
-	case Rare:
-		return "Rare"
-	case Epic:
-		return "Epic"
-	case Legendary:
-		return "Legendary"
-	}
-	return ""
-}
-func (a *Armor) GetLocation() Location {
-	return a.Location
-}
-
-type Potion struct {
-	Entity
-	Size string
-}
-
-func (p *Potion) GetDescription() string {
-	return p.Description
-}
-func (p *Potion) GetName() string {
-	return p.Name
-}
-func (p *Potion) GetRune() rune {
-	return p.Rune
-}
-func (p *Potion) GetEntity() *Entity {
-	return &p.Entity
-}
-func (p *Potion) SetPos(pos Pos) {
-	p.Pos = pos
-}
-func (p *Potion) GetSize() string {
-	return p.Size
-}
-
-func randomizeStats(rarity Rarity, stats *EquipableItemStats) *EquipableItemStats {
+func adaptStatsToRarity(rarity Rarity, stats *EquipableItemStats) *EquipableItemStats {
 	var multiplier float64
 
 	switch rarity {
@@ -239,117 +88,52 @@ func randomizeStats(rarity Rarity, stats *EquipableItemStats) *EquipableItemStat
 }
 
 func randomizeRarity() Rarity {
-	rand.Seed(time.Now().UnixNano())
-	number := rand.Intn(100)
+	number, err := rand.Int(rand.Reader, big.NewInt(100))
+	CheckError(err)
 
 	switch {
-	case number <= 2:
+	case number.Int64() <= 2:
 		return Legendary
-	case number > 2 && number <= 10:
+	case number.Int64() > 2 && number.Int64() <= 10:
 		return Epic
-	case number > 10 && number <= 20:
+	case number.Int64() > 10 && number.Int64() <= 20:
 		return Rare
-	case number > 20 && number <= 40:
+	case number.Int64() > 20 && number.Int64() <= 40:
 		return Uncommon
-	case number > 40 && number <= 100:
+	case number.Int64() > 40 && number.Int64() <= 100:
 		return Common
 	}
 
 	return Common
 }
 
-func NewSword(p Pos) *Sword {
-	rarity := randomizeRarity()
-	stats := randomizeStats(rarity, &EquipableItemStats{
-		MinDamage: 5,
-		MaxDamage: 10,
-		Armor:     0,
-		Critical:  0,
-	})
-	return &Sword{
-		Weapon: Weapon{Entity: Entity{
-			Pos:         p,
-			Name:        "Sword",
-			Rune:        's',
-			Type:        Weapons,
-			Description: "A common sword...",
-		},
-			Location:           RightHand,
-			Rarity:             rarity,
-			EquipableItemStats: *stats,
-		}}
-}
-
-func NewBoots(p Pos) *Boots {
-	rarity := randomizeRarity()
-	stats := randomizeStats(rarity, &EquipableItemStats{
-		MinDamage: 0,
-		MaxDamage: 0,
-		Armor:     5,
-		Critical:  0,
-	})
-	return &Boots{Armor: Armor{
-		Entity: Entity{
-			Pos:         p,
-			Name:        "Boots",
-			Rune:        'b',
-			Type:        Armors,
-			Description: "Common boots...",
-		},
-		Location:           Foots,
-		Rarity:             rarity,
-		EquipableItemStats: *stats,
-	}}
-}
-
-func NewHelmet(p Pos) *Helmet {
-	rarity := randomizeRarity()
-	stats := randomizeStats(rarity, &EquipableItemStats{
-		MinDamage: 0,
-		MaxDamage: 0,
-		Armor:     5,
-		Critical:  0,
-	})
-	return &Helmet{Armor: Armor{
-		Entity: Entity{
-			Pos:         p,
-			Name:        "Helmet",
-			Rune:        'h',
-			Type:        Armors,
-			Description: "A common helmet...",
-		},
-		Location:           Head,
-		Rarity:             rarity,
-		EquipableItemStats: *stats,
-	}}
-}
-
-func NewHealthPotion(p Pos, size string) *Potion {
-	return &Potion{
-		Entity: Entity{
-			Pos:         p,
-			Name:        "Potion",
-			Rune:        'p',
-			Type:        Potions,
-			Description: "A small health potion...",
-		},
-		Size: size,
-	}
-}
-
-func (game *Game) consumePotion(item ConsumableItem) {
-	switch item.GetSize() {
-	case "Small":
-		game.heal(int(float64(game.CurrentLevel.Player.MaxHealth) * .25))
-	case "Medium":
-		game.heal(int(float64(game.CurrentLevel.Player.MaxHealth) * .50))
-	case "Large":
-		game.heal(int(float64(game.CurrentLevel.Player.MaxHealth) * .75))
-	}
-	game.removeInventoryItem(item, &game.CurrentLevel.Player.Character)
-	game.CurrentLevel.AddEvent(game.CurrentLevel.Player.Character.Name + " consumed " + item.GetSize() + item.GetName())
-	game.CurrentLevel.LastEvent = ConsumePotion
-}
+//func (level *Level) TestRarityRand() {
+//	var common, uncommon, rare, epic, legendary int
+//
+//	for i := 0; i < 100000; i++ {
+//		rarity := randomizeRarity()
+//
+//		switch rarity {
+//		case Common:
+//			common++
+//		case Uncommon:
+//			uncommon++
+//		case Rare:
+//			rare++
+//		case Epic:
+//			epic++
+//		case Legendary:
+//			legendary++
+//		}
+//	}
+//
+//	fmt.Println("Summary")
+//	fmt.Println("Common items : ", common, " ", float64(common)/100000*100, "%")
+//	fmt.Println("Uncommon items : ", uncommon, " ", float64(uncommon)/100000*100, "%")
+//	fmt.Println("Rare items : ", rare, " ", float64(rare)/100000*100, "%")
+//	fmt.Println("Epic items : ", epic, " ", float64(epic)/100000*100, "%")
+//	fmt.Println("Legendary items : ", legendary, " ", float64(legendary)/100000*100, "%")
+//}
 
 func (game *Game) adaptPlayerStats(item EquipableItem, addOrRemove string) {
 	if addOrRemove == "add" {
