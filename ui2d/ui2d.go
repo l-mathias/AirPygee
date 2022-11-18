@@ -12,7 +12,7 @@ import (
 	"github.com/veandco/go-sdl2/mix"
 	"github.com/veandco/go-sdl2/sdl"
 	"github.com/veandco/go-sdl2/ttf"
-	"io/ioutil"
+	"io"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -59,7 +59,7 @@ func getMouseState() *mouseState {
 	leftButton := mouseButtonState & sdl.ButtonLMask()
 	rightButton := mouseButtonState & sdl.ButtonRMask()
 	var result mouseState
-	result.pos = game.Pos{int(mouseX), int(mouseY)}
+	result.pos = game.Pos{X: int(mouseX), Y: int(mouseY)}
 	result.leftButton = !(leftButton == 0)
 	result.rightButton = !(rightButton == 0)
 
@@ -452,9 +452,30 @@ func (ui *ui) loadSpritesheetFromXml() {
 
 	defer xmlFile.Close()
 
-	byteValue, _ := ioutil.ReadAll(xmlFile)
+	byteValue, _ := io.ReadAll(xmlFile)
 
-	xml.Unmarshal(byteValue, &ui.texturesList)
+	err = xml.Unmarshal(byteValue, &ui.texturesList)
+	game.CheckError(err)
+}
+
+func (ui *ui) LoadChests() {
+	ui.pCurrentFrame = 0
+	ui.pFramesX = 3
+	ui.pFramesY = 4
+
+	image, err := img.Load("ui2d/assets/chests.png")
+	if err != nil {
+		panic(err)
+	}
+	defer image.Free()
+	image.W /= 4
+	image.H /= 2
+	ui.pTexture, err = ui.renderer.CreateTextureFromSurface(image)
+	game.CheckError(err)
+
+	_, _, imageWidth, imageHeight, _ := ui.pTexture.Query()
+	ui.pWidthTex = imageWidth / ui.pFramesX
+	ui.pHeightTex = imageHeight / ui.pFramesY
 }
 
 func (ui *ui) getRectFromTextureName(name string) *sdl.Rect {
@@ -707,7 +728,9 @@ func (ui *ui) Run() {
 				}
 				switch e.Keysym.Sym {
 				case sdl.K_a:
-					ui.fire(newLevel, 3)
+					pos := []game.Pos{{3, 2}, game.Pos{4, 2}, game.Pos{5, 2}}
+					go ui.displayMovingAnimation(newLevel, 5*time.Second, game.AnimatedPortal, pos, &ui.textureIndexAnims)
+					//ui.fire(newLevel, 3)
 				case sdl.K_ESCAPE:
 					if ui.state == UIMain {
 						ui.state = UIMenu

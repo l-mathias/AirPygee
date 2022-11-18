@@ -187,15 +187,11 @@ func randomizeDamage(min, max int) int {
 	number, err := rand.Int(rand.Reader, big.NewInt(int64(max-min+1)))
 	CheckError(err)
 	return int(number.Int64()) + min
-	//rand.Seed(time.Now().UnixNano())
-	//return rand.Intn(max-min+1) + min
 }
 
 func isCritical(crit float64) bool {
 	number, err := rand.Int(rand.Reader, big.NewInt(100))
 	CheckError(err)
-	//rand.Seed(time.Now().UnixNano())
-	//res := rand.Intn(100)
 
 	return float64(number.Int64()) <= crit
 }

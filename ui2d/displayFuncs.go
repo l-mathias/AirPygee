@@ -14,45 +14,36 @@ func (ui *ui) displayStats(level *game.Level) {
 	statsPanel := ui.getRectFromTextureName("panel_brown.png")
 	statsPanelOffsetY := int32(float64(ui.winHeight) * 0.10)
 
-	if err := ui.renderer.Copy(ui.uipack, statsPanel, &sdl.Rect{X: 0, Y: statsPanelOffsetY, W: int32(float64(ui.winWidth) * 0.20), H: int32(float64(ui.winHeight) * 0.30)}); err != nil {
-		panic(err)
-	}
+	err := ui.renderer.Copy(ui.uipack, statsPanel, &sdl.Rect{X: 0, Y: statsPanelOffsetY, W: int32(float64(ui.winWidth) * 0.20), H: int32(float64(ui.winHeight) * 0.30)})
+	game.CheckError(err)
 
 	// Drawing Health count
 	tex := ui.stringToTexture("Life "+strconv.Itoa(level.Player.Health), sdl.Color{R: 139, G: 69, B: 19}, FontMedium)
 	_, _, w, h, _ := tex.Query()
 
-	err := ui.renderer.Copy(tex, nil, &sdl.Rect{X: int32(float64(statsPanel.W) * .10), Y: statsPanelOffsetY + int32(float64(statsPanel.H)*.05), W: w, H: h})
-	if err != nil {
-		panic(err)
-	}
+	err = ui.renderer.Copy(tex, nil, &sdl.Rect{X: int32(float64(statsPanel.W) * .10), Y: statsPanelOffsetY + int32(float64(statsPanel.H)*.05), W: w, H: h})
+	game.CheckError(err)
 
 	// Drawing Damage count
 	tex = ui.stringToTexture("Damage "+strconv.Itoa(level.Player.MinDamage)+" - "+strconv.Itoa(level.Player.MaxDamage), sdl.Color{R: 139, G: 69, B: 19}, FontMedium)
 	_, _, w, h, _ = tex.Query()
 
 	err = ui.renderer.Copy(tex, nil, &sdl.Rect{X: int32(float64(statsPanel.W) * .10), Y: statsPanelOffsetY + int32(float64(statsPanel.H)*.25), W: w, H: h})
-	if err != nil {
-		panic(err)
-	}
+	game.CheckError(err)
 
 	// Drawing Defense count
 	tex = ui.stringToTexture("Armor "+strconv.Itoa(level.Player.Armor), sdl.Color{R: 139, G: 69, B: 19}, FontMedium)
 	_, _, w, h, _ = tex.Query()
 
 	err = ui.renderer.Copy(tex, nil, &sdl.Rect{X: int32(float64(statsPanel.W) * .10), Y: statsPanelOffsetY + int32(float64(statsPanel.H)*.45), W: w, H: h})
-	if err != nil {
-		panic(err)
-	}
+	game.CheckError(err)
 
 	// Drawing Critical count
 	tex = ui.stringToTexture("Critical "+fmt.Sprintf("%.2f %%", level.Player.Critical), sdl.Color{R: 139, G: 69, B: 19}, FontMedium)
 	_, _, w, h, _ = tex.Query()
 
 	err = ui.renderer.Copy(tex, nil, &sdl.Rect{X: int32(float64(statsPanel.W) * .10), Y: statsPanelOffsetY + int32(float64(statsPanel.H)*.65), W: w, H: h})
-	if err != nil {
-		panic(err)
-	}
+	game.CheckError(err)
 
 }
 
@@ -76,9 +67,8 @@ func (ui *ui) displayHUD(level *game.Level) {
 	firstFrameX := 512
 	for i := 0; i < 4; i++ {
 
-		if err := ui.renderer.Copy(ui.tileMap, &sdl.Rect{X: int32(firstFrameX + i*16), Y: 68, W: 16, H: 16}, &sdl.Rect{X: int32(i * 32), Y: 0, W: tileSize, H: tileSize}); err != nil {
-			panic(err)
-		}
+		err := ui.renderer.Copy(ui.tileMap, &sdl.Rect{X: int32(firstFrameX + i*16), Y: 68, W: 16, H: 16}, &sdl.Rect{X: int32(i * 32), Y: 0, W: tileSize, H: tileSize})
+		game.CheckError(err)
 
 	}
 
@@ -190,12 +180,11 @@ func (ui *ui) displayPopupItem(item game.Item, mouseX, mouseY int32) {
 
 // displayMonsters displays monsters on map
 func (ui *ui) displayMonsters(level *game.Level) {
-	if err := ui.textureAtlas.SetColorMod(255, 255, 255); err != nil {
-		panic(err)
-	}
+	err := ui.textureAtlas.SetColorMod(255, 255, 255)
+	game.CheckError(err)
 	for pos, monster := range level.Monsters {
 		if level.Map[pos.Y][pos.X].Visible {
-			err := ui.renderer.FillRect(&sdl.Rect{X: int32(level.Monsters[pos].X)*tileSize + ui.offsetX, Y: int32(level.Monsters[pos].Y-1)*tileSize + ui.offsetY + 20, W: tileSize, H: 5})
+			err = ui.renderer.FillRect(&sdl.Rect{X: int32(level.Monsters[pos].X)*tileSize + ui.offsetX, Y: int32(level.Monsters[pos].Y-1)*tileSize + ui.offsetY + 20, W: tileSize, H: 5})
 			game.CheckError(err)
 
 			var gauge float64
@@ -243,9 +232,7 @@ func (ui *ui) displayItems(level *game.Level) {
 				}
 
 				err := ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: int32(pos.X)*tileSize + ui.offsetX, Y: int32(pos.Y)*tileSize + ui.offsetY, W: size, H: size})
-				if err != nil {
-					panic(err)
-				}
+				game.CheckError(err)
 
 			}
 		}
@@ -304,7 +291,7 @@ func (ui *ui) displayTileAnimation(level *game.Level, duration time.Duration, p 
 	for start := time.Now(); time.Since(start) < duration; {
 
 		for i := 0; i < numFrames; i++ {
-			if int(time.Since(start).Nanoseconds())%numFrames == i {
+			if int(time.Since(start).Seconds())%numFrames == i {
 				textureIndex.mu.Lock()
 				textureIndex.rects[animation] = nil
 				textureIndex.rects[animation] = append(textureIndex.rects[animation], *ui.animations[animation][i])

@@ -111,9 +111,8 @@ func (ui *ui) drawInventory(level *game.Level) {
 	playerX := ((ui.invWidth - (ui.invWidth / 3)) / 2) + ui.invOffsetX
 	playerY := ((ui.invHeight - (ui.invHeight / 3)) / 2) + ui.invOffsetY
 
-	if err := ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("panel_beige.png"), &sdl.Rect{X: ui.invOffsetX, Y: ui.invOffsetY, W: ui.invWidth, H: ui.invHeight}); err != nil {
-		panic(err)
-	}
+	err := ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("panel_beige.png"), &sdl.Rect{X: ui.invOffsetX, Y: ui.invOffsetY, W: ui.invWidth, H: ui.invHeight})
+	game.CheckError(err)
 
 	if err := ui.renderer.Copy(ui.pTexture, &playerSrcRect, &sdl.Rect{X: playerX, Y: playerY, W: ui.invWidth / 3, H: ui.invHeight / 3}); err != nil {
 		panic(err)
@@ -123,29 +122,23 @@ func (ui *ui) drawInventory(level *game.Level) {
 
 	// draw panel items
 	//Head
-	if err := ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("buttonSquare_blue_pressed.png"), &sdl.Rect{X: ui.invHeadX, Y: ui.invHeadY, W: ui.itemW, H: ui.itemH}); err != nil {
-		panic(err)
-	}
+	err = ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("buttonSquare_blue_pressed.png"), &sdl.Rect{X: ui.invHeadX, Y: ui.invHeadY, W: ui.itemW, H: ui.itemH})
+	game.CheckError(err)
 	//RightHand
-	if err := ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("buttonSquare_blue_pressed.png"), &sdl.Rect{X: ui.invRHandX, Y: ui.invRHandY, W: ui.itemW, H: ui.itemH}); err != nil {
-		panic(err)
-	}
+	err = ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("buttonSquare_blue_pressed.png"), &sdl.Rect{X: ui.invRHandX, Y: ui.invRHandY, W: ui.itemW, H: ui.itemH})
+	game.CheckError(err)
 	//LeftHand
-	if err := ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("buttonSquare_blue_pressed.png"), &sdl.Rect{X: ui.invLHandX, Y: ui.invLHandY, W: ui.itemW, H: ui.itemH}); err != nil {
-		panic(err)
-	}
+	err = ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("buttonSquare_blue_pressed.png"), &sdl.Rect{X: ui.invLHandX, Y: ui.invLHandY, W: ui.itemW, H: ui.itemH})
+	game.CheckError(err)
 	//Foots
-	if err := ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("buttonSquare_blue_pressed.png"), &sdl.Rect{X: ui.invFootsX, Y: ui.invFootsY, W: ui.itemW, H: ui.itemH}); err != nil {
-		panic(err)
-	}
+	err = ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("buttonSquare_blue_pressed.png"), &sdl.Rect{X: ui.invFootsX, Y: ui.invFootsY, W: ui.itemW, H: ui.itemH})
+	game.CheckError(err)
 	//Chest
-	if err := ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("buttonSquare_blue_pressed.png"), &sdl.Rect{X: ui.invChestX, Y: ui.invChestY, W: ui.itemW, H: ui.itemH}); err != nil {
-		panic(err)
-	}
+	err = ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("buttonSquare_blue_pressed.png"), &sdl.Rect{X: ui.invChestX, Y: ui.invChestY, W: ui.itemW, H: ui.itemH})
+	game.CheckError(err)
 	//Legs
-	if err := ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("buttonSquare_blue_pressed.png"), &sdl.Rect{X: ui.invLegsX, Y: ui.invLegsY, W: ui.itemW, H: ui.itemH}); err != nil {
-		panic(err)
-	}
+	err = ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("buttonSquare_blue_pressed.png"), &sdl.Rect{X: ui.invLegsX, Y: ui.invLegsY, W: ui.itemW, H: ui.itemH})
+	game.CheckError(err)
 
 	for i, item := range level.Player.EquippedItems {
 		ui.textureIndexItems.mu.RLock()
@@ -177,13 +170,11 @@ func (ui *ui) drawInventory(level *game.Level) {
 		}
 
 		if item == ui.draggedItem {
-			if err := ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: int32(ui.currentMouseState.pos.X) - ui.itemW/2, Y: int32(ui.currentMouseState.pos.Y) - ui.itemH/2, W: ui.itemW, H: ui.itemH}); err != nil {
-				panic(err)
-			}
+			err = ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: int32(ui.currentMouseState.pos.X) - ui.itemW/2, Y: int32(ui.currentMouseState.pos.Y) - ui.itemH/2, W: ui.itemW, H: ui.itemH})
+			game.CheckError(err)
 		} else {
-			if err := ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: locationX, Y: locationY, W: ui.itemW, H: ui.itemH}); err != nil {
-				panic(err)
-			}
+			err = ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: locationX, Y: locationY, W: ui.itemW, H: ui.itemH})
+			game.CheckError(err)
 		}
 	}
 
@@ -201,9 +192,8 @@ func (ui *ui) drawInventory(level *game.Level) {
 		locationY = ui.invOffsetY + ui.itemH*countY
 
 		if item == ui.draggedItem {
-			if err := ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: int32(ui.currentMouseState.pos.X) - ui.itemW/2, Y: int32(ui.currentMouseState.pos.Y) - ui.itemH/2, W: ui.itemW, H: ui.itemH}); err != nil {
-				panic(err)
-			}
+			err = ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: int32(ui.currentMouseState.pos.X) - ui.itemW/2, Y: int32(ui.currentMouseState.pos.Y) - ui.itemH/2, W: ui.itemW, H: ui.itemH})
+			game.CheckError(err)
 		} else {
 			var size int32
 			size = ui.itemW
@@ -223,9 +213,8 @@ func (ui *ui) drawInventory(level *game.Level) {
 					locationY += ui.itemH/2 - size/2
 				}
 			}
-			if err := ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: locationX, Y: locationY, W: size, H: size}); err != nil {
-				panic(err)
-			}
+			err = ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: locationX, Y: locationY, W: size, H: size})
+			game.CheckError(err)
 		}
 		countX++
 	}
@@ -240,9 +229,8 @@ func (ui *ui) drawEmptyInventory(level *game.Level) {
 		}
 		locationX = ui.invOffsetX + ui.invWidth + ui.itemW*countX
 		locationY = ui.invOffsetY + ui.itemH*countY
-		if err := ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("buttonSquare_brown_pressed.png"), &sdl.Rect{X: locationX, Y: locationY, W: ui.itemW, H: ui.itemH}); err != nil {
-			panic(err)
-		}
+		err := ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("buttonSquare_brown_pressed.png"), &sdl.Rect{X: locationX, Y: locationY, W: ui.itemW, H: ui.itemH})
+		game.CheckError(err)
 		countX++
 	}
 }
