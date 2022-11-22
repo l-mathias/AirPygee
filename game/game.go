@@ -1,5 +1,12 @@
 package game
 
+//TODO - improve loadWorld loadLevels - one should call the other one
+//TODO - Save / Load game state
+//TODO - Hero classes + characters interfaces
+//TODO - levels procedural generation
+//TODO - random monsters placed randomly in a level
+//TODO - Chests
+
 import (
 	"bufio"
 	"crypto/rand"
@@ -11,8 +18,6 @@ import (
 	"path/filepath"
 	"strconv"
 )
-
-//TODO - improve loadWorld loadLevels - one should call the other one
 
 const (
 	None InputType = iota
@@ -144,6 +149,7 @@ const (
 	Pickup
 	DropItem
 	ConsumePotion
+	OpenChest
 )
 
 type GameAttack struct {
@@ -431,8 +437,12 @@ func (game *Game) action(pos Pos, item Item) {
 	case game.CurrentLevel.Map[pos.Y][pos.X].OverlayRune == OpenDoor:
 		checkDoor(game.CurrentLevel, pos)
 	case item != nil:
-		if item.GetEntity().Type == Potions {
+		switch item.(type) {
+		case ConsumableItem:
 			game.consumePotion(item.(ConsumableItem))
+		case OpenableItem:
+			game.OpenItem(item.(OpenableItem))
+		default:
 		}
 	}
 }
@@ -666,6 +676,11 @@ func (game *Game) loadLevels() map[string]*Level {
 				case 'b':
 					level.Items[pos] = append(level.Items[pos], NewBoots(pos))
 					level.Map[y][x].Rune = Pending
+				case 't':
+					level.Items[pos] = append(level.Items[pos], NewTreasureChest(pos, 3))
+					level.Map[y][x].Rune = Pending
+					level.Map[y][x].Walkable = false
+					level.Map[y][x].Actionable = true
 				case 'a':
 					level.Items[pos] = append(level.Items[pos], NewPlate(pos))
 					level.Map[y][x].Rune = Pending

@@ -1,8 +1,8 @@
 package ui2d
 
-// TODO - add damage on top of character when combat
-// TODO - add Player character selection
-// TODO - Improve fog of war effect using transparent texture or special tiles
+//TODO - add Player character selection
+//TODO - Improve fog of war effect using transparent texture or special tiles
+//TODO - Chests
 
 import (
 	"AirPygee/game"
@@ -115,6 +115,10 @@ type ui struct {
 	pSrc                                              sdl.Rect
 	pDest                                             sdl.Rect
 
+	//chests
+	chestsTex *sdl.Texture
+	chests    map[int]*sdl.Rect
+
 	// UI Theme
 	uipack       *sdl.Texture
 	texturesList SubTextures
@@ -122,7 +126,7 @@ type ui struct {
 	textureIndexTiles, textureIndexMonsters, textureIndexItems, textureIndexAnims TextureIndex
 
 	//animations
-	animations       map[rune][]*sdl.Rect
+	animations       map[rune]*sdl.Rect
 	damagesToDisplay map[string]*Damage
 
 	centerX, centerY int
@@ -145,6 +149,7 @@ type ui struct {
 	// Fonts
 	fontSmall, fontMedium, fontLarge          *ttf.Font
 	str2TexSmall, str2TexMedium, str2TexLarge StrToTex
+
 	//Main Menu
 	menuButtons []*menuButton
 }
@@ -157,8 +162,9 @@ func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 	ui.str2TexSmall.texs = make(map[coloredFont]*sdl.Texture)
 	ui.str2TexMedium.texs = make(map[coloredFont]*sdl.Texture)
 	ui.str2TexLarge.texs = make(map[coloredFont]*sdl.Texture)
-	ui.animations = make(map[rune][]*sdl.Rect)
+	ui.animations = make(map[rune]*sdl.Rect)
 	ui.damagesToDisplay = make(map[string]*Damage)
+	ui.chests = make(map[int]*sdl.Rect)
 	ui.r = rand.New(rand.NewSource(1))
 	ui.winWidth = 1280
 	ui.winHeight = 720
@@ -240,18 +246,9 @@ func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 
 	ui.menuButtons = make([]*menuButton, 0)
 	ui.buildMenuButtons()
-	ui.buildAnimations()
+	ui.LoadTreasureChests()
 
 	return ui
-}
-
-func (ui *ui) buildAnimations() {
-	ui.buildAnimation(game.AnimatedPortal, &sdl.Rect{X: 1376, Y: 320, W: tileSize, H: tileSize}, &sdl.Rect{X: 1408, Y: 320, W: tileSize, H: tileSize}, &sdl.Rect{X: 1440, Y: 320, W: tileSize, H: tileSize})
-
-	ui.buildAnimation(game.UpAnim, &sdl.Rect{X: 352, Y: 768, W: tileSize, H: tileSize})
-	ui.buildAnimation(game.DownAnim, &sdl.Rect{X: 480, Y: 768, W: tileSize, H: tileSize})
-	ui.buildAnimation(game.LeftAnim, &sdl.Rect{X: 544, Y: 768, W: tileSize, H: tileSize})
-	ui.buildAnimation(game.RightAnim, &sdl.Rect{X: 416, Y: 768, W: tileSize, H: tileSize})
 }
 
 func (ui *ui) loadSounds() {
@@ -458,24 +455,22 @@ func (ui *ui) loadSpritesheetFromXml() {
 	game.CheckError(err)
 }
 
-func (ui *ui) LoadChests() {
-	ui.pCurrentFrame = 0
-	ui.pFramesX = 3
-	ui.pFramesY = 4
-
+func (ui *ui) LoadTreasureChests() {
 	image, err := img.Load("ui2d/assets/chests.png")
-	if err != nil {
-		panic(err)
-	}
-	defer image.Free()
-	image.W /= 4
-	image.H /= 2
-	ui.pTexture, err = ui.renderer.CreateTextureFromSurface(image)
 	game.CheckError(err)
 
-	_, _, imageWidth, imageHeight, _ := ui.pTexture.Query()
-	ui.pWidthTex = imageWidth / ui.pFramesX
-	ui.pHeightTex = imageHeight / ui.pFramesY
+	defer image.Free()
+
+	ui.chestsTex, err = ui.renderer.CreateTextureFromSurface(image)
+	game.CheckError(err)
+
+	count := 0
+	for y := 0; y < 2; y++ {
+		for x := 0; x < 4; x++ {
+			ui.chests[count] = &sdl.Rect{X: int32(x) * image.W / 4, Y: int32(y) * image.H / 2, W: (image.W / 4) / 3, H: (image.H / 2) / 4}
+			count++
+		}
+	}
 }
 
 func (ui *ui) getRectFromTextureName(name string) *sdl.Rect {
@@ -553,13 +548,9 @@ func (ui *ui) draw(level *game.Level) {
 						game.CheckError(err)
 					}
 
-					// display current running animation if running
+					// display current running animation if any
 					if tile.AnimRune != game.Blank {
-						ui.textureIndexAnims.mu.RLock()
-						srcRects = ui.textureIndexAnims.rects[tile.AnimRune]
-						ui.textureIndexAnims.mu.RUnlock()
-						srcRect = srcRects[0]
-
+						srcRect = *ui.animations[tile.AnimRune]
 						err = ui.renderer.Copy(ui.textureAtlas, &srcRect, &dstRect)
 						game.CheckError(err)
 					}
@@ -580,27 +571,27 @@ func (ui *ui) draw(level *game.Level) {
 	if len(level.Items[level.Player.Pos]) > 0 {
 		groundItems := level.Items[level.Player.Pos]
 		for i, item := range groundItems {
-			ui.textureIndexItems.mu.RLock()
-			itemSrcRect := ui.textureIndexItems.rects[item.GetRune()][0]
-			ui.textureIndexItems.mu.RUnlock()
+			switch item.(type) {
+			case game.EquipableItem, game.ConsumableItem:
+				ui.textureIndexItems.mu.RLock()
+				itemSrcRect := ui.textureIndexItems.rects[item.GetRune()][0]
+				ui.textureIndexItems.mu.RUnlock()
 
-			err = ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: int32(ui.winWidth) - tileSize - int32(i)*tileSize, Y: 0, W: tileSize, H: tileSize})
-			game.CheckError(err)
-
+				err = ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: int32(ui.winWidth) - tileSize - int32(i)*tileSize, Y: 0, W: tileSize, H: tileSize})
+				game.CheckError(err)
+				// drawing help letter T
+				err = ui.renderer.Copy(ui.tileMap, &sdl.Rect{X: 358, Y: 34, W: 16, H: 16}, &sdl.Rect{X: int32(ui.winWidth) - tileSize - int32(len(groundItems))*tileSize, Y: 0, W: tileSize, H: tileSize})
+				game.CheckError(err)
+			default:
+			}
 		}
-		// drawing help letter T
-		err = ui.renderer.Copy(ui.tileMap, &sdl.Rect{X: 358, Y: 34, W: 16, H: 16}, &sdl.Rect{X: int32(ui.winWidth) - tileSize - int32(len(groundItems))*tileSize, Y: 0, W: tileSize, H: tileSize})
-		game.CheckError(err)
-
 	}
 
 	if level.Map[level.FrontOf().Y][level.FrontOf().X].Actionable {
 		// drawing help letter E
 		err = ui.renderer.Copy(ui.tileMap, &sdl.Rect{X: 324, Y: 34, W: 16, H: 16}, &sdl.Rect{X: int32(ui.winWidth) - tileSize - tileSize, Y: 0, W: tileSize, H: tileSize})
 		game.CheckError(err)
-
 	}
-	//ui.renderer.Present()
 }
 
 func (ui *ui) getSinglePixel(color sdl.Color) *sdl.Texture {
@@ -692,6 +683,8 @@ func (ui *ui) Run() {
 					playRandomSound(ui.sounds.pickup, ui.soundsVolume)
 				case game.ConsumePotion:
 					playRandomSound(ui.sounds.potion, ui.soundsVolume)
+				case game.OpenChest:
+					playRandomSound(ui.sounds.openDoor, ui.soundsVolume)
 				default:
 				}
 				newLevel.LastEvent = game.Empty
@@ -728,7 +721,7 @@ func (ui *ui) Run() {
 				}
 				switch e.Keysym.Sym {
 				case sdl.K_a:
-					pos := []game.Pos{{3, 2}, game.Pos{4, 2}, game.Pos{5, 2}}
+					pos := []game.Pos{{3, 2}}
 					go ui.displayMovingAnimation(newLevel, 5*time.Second, game.AnimatedPortal, pos, &ui.textureIndexAnims)
 					//ui.fire(newLevel, 3)
 				case sdl.K_ESCAPE:
@@ -750,7 +743,17 @@ func (ui *ui) Run() {
 					input = game.Input{Typ: game.Right}
 					ui.UpdatePlayer(game.Right)
 				case sdl.K_e:
-					input = game.Input{Typ: game.Action}
+					pos := newLevel.FrontOf()
+					if newLevel.Items[pos] != nil {
+						switch newLevel.Items[pos][0].(type) {
+						case game.OpenableItem:
+							input = game.Input{Typ: game.Action, Item: newLevel.Items[pos][0]}
+						default:
+							input = game.Input{Typ: game.Action}
+						}
+					} else {
+						input = game.Input{Typ: game.Action}
+					}
 				case sdl.K_t:
 					input = game.Input{Typ: game.TakeAll}
 				case sdl.K_i:

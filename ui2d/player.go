@@ -16,8 +16,10 @@ func (ui *ui) LoadPlayer() {
 		panic(err)
 	}
 	defer image.Free()
+
 	image.W /= 4
 	image.H /= 2
+
 	ui.pTexture, err = ui.renderer.CreateTextureFromSurface(image)
 	if err != nil {
 		panic(err)

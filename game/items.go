@@ -23,6 +23,7 @@ const (
 	Armors ItemType = iota
 	Weapons
 	Potions
+	TreasureChests
 )
 
 const (
@@ -50,6 +51,17 @@ type EquipableItem interface {
 	GetRarity() Rarity
 	ToString(Rarity) string
 	GetLocation() Location
+}
+
+type OpenableItem interface {
+	Item
+	GetSize() int
+	GetItems() *[]Item
+	RemoveItem(*Item)
+	GetPos() Pos
+	GetState() bool
+	Open()
+	Close()
 }
 
 type ConsumableItem interface {
@@ -107,34 +119,6 @@ func randomizeRarity() Rarity {
 	return Common
 }
 
-//func (level *Level) TestRarityRand() {
-//	var common, uncommon, rare, epic, legendary int
-//
-//	for i := 0; i < 100000; i++ {
-//		rarity := randomizeRarity()
-//
-//		switch rarity {
-//		case Common:
-//			common++
-//		case Uncommon:
-//			uncommon++
-//		case Rare:
-//			rare++
-//		case Epic:
-//			epic++
-//		case Legendary:
-//			legendary++
-//		}
-//	}
-//
-//	fmt.Println("Summary")
-//	fmt.Println("Common items : ", common, " ", float64(common)/100000*100, "%")
-//	fmt.Println("Uncommon items : ", uncommon, " ", float64(uncommon)/100000*100, "%")
-//	fmt.Println("Rare items : ", rare, " ", float64(rare)/100000*100, "%")
-//	fmt.Println("Epic items : ", epic, " ", float64(epic)/100000*100, "%")
-//	fmt.Println("Legendary items : ", legendary, " ", float64(legendary)/100000*100, "%")
-//}
-
 func (game *Game) adaptPlayerStats(item EquipableItem, addOrRemove string) {
 	if addOrRemove == "add" {
 		game.CurrentLevel.Player.MinDamage += item.GetStats().MinDamage
@@ -180,4 +164,28 @@ func (game *Game) slotFreeToEquip(itemToCheck EquipableItem) bool {
 		}
 	}
 	return true
+}
+
+func randomLoot(p Pos, numItems int) *[]Item {
+	items := make([]Item, 0)
+
+	for i := 0; i < numItems; i++ {
+		number, err := rand.Int(rand.Reader, big.NewInt(4))
+		CheckError(err)
+
+		switch {
+		case number.Int64() == 0:
+			items = append(items, NewHelmet(p))
+		case number.Int64() == 1:
+			items = append(items, NewSword(p))
+		case number.Int64() == 2:
+			items = append(items, NewPlate(p))
+		case number.Int64() == 3:
+			items = append(items, NewHealthPotion(p, "Small"))
+		case number.Int64() == 4:
+			items = append(items, NewBoots(p))
+		}
+	}
+
+	return &items
 }

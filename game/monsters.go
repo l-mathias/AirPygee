@@ -9,8 +9,8 @@ type Monster struct {
 	Character
 }
 
-func randomizeLoot() *[]Item {
-	items := make([]Item, 0)
+func randomizeLoot(p Pos) *[]Item {
+	//items := make([]Item, 0)
 	numItems := 0
 
 	number, err := rand.Int(rand.Reader, big.NewInt(100))
@@ -29,27 +29,28 @@ func randomizeLoot() *[]Item {
 		numItems = 0
 	}
 
-	for i := 0; i < numItems; i++ {
-		number, err = rand.Int(rand.Reader, big.NewInt(100))
-		CheckError(err)
-		switch number.Int64() {
-		case 0:
-			items = append(items, NewSword(Pos{}))
-		case 1:
-			items = append(items, NewHelmet(Pos{}))
-		case 2:
-			items = append(items, NewHealthPotion(Pos{}, "Small"))
-		case 3:
-			items = append(items, NewBoots(Pos{}))
-		case 4:
-			items = append(items, NewPlate(Pos{}))
-		}
-	}
-	return &items
+	return randomLoot(p, numItems)
+	//for i := 0; i < numItems; i++ {
+	//	number, err = rand.Int(rand.Reader, big.NewInt(100))
+	//	CheckError(err)
+	//	switch number.Int64() {
+	//	case 0:
+	//		items = append(items, NewSword(Pos{}))
+	//	case 1:
+	//		items = append(items, NewHelmet(Pos{}))
+	//	case 2:
+	//		items = append(items, NewHealthPotion(Pos{}, "Small"))
+	//	case 3:
+	//		items = append(items, NewBoots(Pos{}))
+	//	case 4:
+	//		items = append(items, NewPlate(Pos{}))
+	//	}
+	//}
+	//return &items
 }
 
 func NewBat(p Pos) *Monster {
-	items := randomizeLoot()
+	items := randomizeLoot(p)
 	return &Monster{Character{
 		Entity:       Entity{Pos: p, Name: "Bat", Rune: Bat},
 		Health:       50,
@@ -65,7 +66,7 @@ func NewBat(p Pos) *Monster {
 }
 
 func NewRat(p Pos) *Monster {
-	items := randomizeLoot()
+	items := randomizeLoot(p)
 	return &Monster{Character{
 		Entity:       Entity{Pos: p, Name: "Rat", Rune: Rat},
 		Health:       50,
@@ -81,7 +82,7 @@ func NewRat(p Pos) *Monster {
 }
 
 func NewSpider(p Pos) *Monster {
-	items := randomizeLoot()
+	items := randomizeLoot(p)
 	return &Monster{Character{
 		Entity:       Entity{Pos: p, Name: "Spider", Rune: Spider},
 		Health:       10,

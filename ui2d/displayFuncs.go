@@ -104,7 +104,8 @@ func (ui *ui) displayPopupItem(item game.Item, mouseX, mouseY int32) {
 	color := sdl.Color{R: 225, G: 225, B: 225}
 	var rarity string
 
-	if item.GetEntity().Type != game.Potions {
+	switch item.(type) {
+	case game.EquipableItem:
 		switch item.(game.EquipableItem).GetRarity() {
 		case game.Common:
 			color = sdl.Color{R: 225, G: 225, B: 225}
@@ -122,14 +123,15 @@ func (ui *ui) displayPopupItem(item game.Item, mouseX, mouseY int32) {
 			color = sdl.Color{R: 225, G: 225, B: 0}
 			rarity = "Legendary"
 		}
+	default:
 	}
 
 	err := ui.renderer.Copy(popup, nil, &sdl.Rect{X: mouseX - popupWidth, Y: mouseY, W: popupWidth, H: popupHeight})
 	game.CheckError(err)
 
 	// display item specific
-	switch item.GetEntity().Type {
-	case game.Potions:
+	switch item.(type) {
+	case game.ConsumableItem:
 		// display item Name
 		tex := ui.stringToTexture(item.GetName(), color, FontMedium)
 		_, _, w, h, _ := tex.Query()
@@ -141,7 +143,7 @@ func (ui *ui) displayPopupItem(item game.Item, mouseX, mouseY int32) {
 		err = ui.renderer.Copy(texPotion, nil, &sdl.Rect{X: mouseX - popupWidth, Y: mouseY + int32(float64(popupHeight)*.65), W: w, H: h})
 		game.CheckError(err)
 
-	case game.Weapons, game.Armors:
+	case game.EquipableItem:
 		// display item Name
 		tex := ui.stringToTexture(item.(game.EquipableItem).ToString(item.(game.EquipableItem).GetRarity())+" "+item.GetName(), color, FontMedium)
 		_, _, w, h, _ := tex.Query()
@@ -215,12 +217,16 @@ func (ui *ui) displayItems(level *game.Level) {
 	for pos, items := range level.Items {
 		if level.Map[pos.Y][pos.X].Visible {
 			for _, item := range items {
-				ui.textureIndexItems.mu.RLock()
-				itemSrcRect := ui.textureIndexItems.rects[item.GetRune()][0]
-				ui.textureIndexItems.mu.RUnlock()
 				var size int32
+				var itemSrcRect sdl.Rect
+				var itemSrcTex *sdl.Texture
 				size = tileSize
-				if item.GetName() == "Potion" {
+				switch item.(type) {
+				case game.ConsumableItem:
+					ui.textureIndexItems.mu.RLock()
+					itemSrcRect = ui.textureIndexItems.rects[item.GetRune()][0]
+					ui.textureIndexItems.mu.RUnlock()
+					itemSrcTex = ui.textureAtlas
 					switch item.(game.ConsumableItem).GetSize() {
 					case "Small":
 						size = int32(float64(size) * .50)
@@ -229,11 +235,19 @@ func (ui *ui) displayItems(level *game.Level) {
 					case "Large":
 						size = int32(float64(size) * .95)
 					}
+				case game.EquipableItem:
+					ui.textureIndexItems.mu.RLock()
+					itemSrcRect = ui.textureIndexItems.rects[item.GetRune()][0]
+					ui.textureIndexItems.mu.RUnlock()
+					itemSrcTex = ui.textureAtlas
+				case game.OpenableItem:
+					itemSrcRect = *ui.chests[item.(game.OpenableItem).GetSize()]
+					itemSrcTex = ui.chestsTex
+					size = tileSize
 				}
 
-				err := ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: int32(pos.X)*tileSize + ui.offsetX, Y: int32(pos.Y)*tileSize + ui.offsetY, W: size, H: size})
+				err := ui.renderer.Copy(itemSrcTex, &itemSrcRect, &sdl.Rect{X: int32(pos.X)*tileSize + ui.offsetX, Y: int32(pos.Y)*tileSize + ui.offsetY, W: size, H: size})
 				game.CheckError(err)
-
 			}
 		}
 	}
@@ -277,26 +291,29 @@ func (ui *ui) displayDamages() {
 	}
 }
 
-func (ui *ui) buildAnimation(animation rune, texs ...*sdl.Rect) {
-	for _, tex := range texs {
-		ui.animations[animation] = append(ui.animations[animation], tex)
-	}
-}
-
 func (ui *ui) displayTileAnimation(level *game.Level, duration time.Duration, p game.Pos, animation rune, textureIndex *TextureIndex) {
 	tempTile := level.Map[p.Y][p.X].AnimRune
-	level.Map[p.Y][p.X].AnimRune = animation
-	numFrames := len(ui.animations[animation])
+	numFrames := len(textureIndex.rects[animation])
+	started := true
+	currentFrame := 0
+	timeStart := time.Now()
 
-	for start := time.Now(); time.Since(start) < duration; {
+	for range time.Tick(500 * time.Millisecond) {
+		textureIndex.mu.RLock()
+		ui.animations[animation] = &textureIndex.rects[animation][currentFrame]
+		textureIndex.mu.RUnlock()
 
-		for i := 0; i < numFrames; i++ {
-			if int(time.Since(start).Seconds())%numFrames == i {
-				textureIndex.mu.Lock()
-				textureIndex.rects[animation] = nil
-				textureIndex.rects[animation] = append(textureIndex.rects[animation], *ui.animations[animation][i])
-				textureIndex.mu.Unlock()
-			}
+		if started {
+			level.Map[p.Y][p.X].AnimRune = animation
+			started = false
+		}
+
+		currentFrame++
+		if currentFrame == numFrames {
+			currentFrame = 0
+		}
+		if time.Since(timeStart) >= duration {
+			break
 		}
 	}
 	level.Map[p.Y][p.X].AnimRune = tempTile
