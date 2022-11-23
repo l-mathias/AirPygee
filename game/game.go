@@ -536,17 +536,13 @@ func (game *Game) handleInput(input *Input) {
 
 func (game *Game) loadWorld() {
 	file, err := os.Open("game/maps/world.txt")
-	if err != nil {
-		panic(err)
-	}
+	CheckError(err)
 
 	csvReader := csv.NewReader(file)
 	csvReader.FieldsPerRecord = -1
 	csvReader.TrimLeadingSpace = true
 	rows, err := csvReader.ReadAll()
-	if err != nil {
-		panic(err)
-	}
+	CheckError(err)
 
 	for rIndex, row := range rows {
 		if rIndex == 0 {
@@ -563,26 +559,18 @@ func (game *Game) loadWorld() {
 			panic(nil)
 		}
 		x, err := strconv.Atoi(row[1])
-		if err != nil {
-			panic(err)
-		}
+		CheckError(err)
 		y, err := strconv.Atoi(row[2])
-		if err != nil {
-			panic(err)
-		}
+		CheckError(err)
 
 		pos := Pos{x, y}
 
 		levelToTeleport := row[3]
 
 		x, err = strconv.Atoi(row[4])
-		if err != nil {
-			panic(err)
-		}
+		CheckError(err)
 		y, err = strconv.Atoi(row[5])
-		if err != nil {
-			panic(err)
-		}
+		CheckError(err)
 
 		posToTeleport := Pos{x, y}
 
@@ -599,17 +587,13 @@ func (game *Game) loadLevels() map[string]*Level {
 	levels := make(map[string]*Level, 0)
 
 	fileNames, err := filepath.Glob("game/maps/*.map")
-	if err != nil {
-		panic(err)
-	}
+	CheckError(err)
 
 	for _, fileName := range fileNames {
 		levelName := filepath.Base(fileName[:len(fileName)-len(filepath.Ext(fileName))])
 
 		file, err := os.Open(fileName)
-		if err != nil {
-			panic(err)
-		}
+		CheckError(err)
 
 		scanner := bufio.NewScanner(file)
 		levelLines := make([]string, 0)

@@ -206,7 +206,7 @@ func (ui *ui) displayMonsters(level *game.Level) {
 			err = ui.renderer.SetDrawColor(0, 0, 0, 0)
 			game.CheckError(err)
 
-			err = ui.renderer.Copy(ui.textureAtlas, &monsterSrcRect, &sdl.Rect{X: int32(pos.X)*tileSize + ui.offsetX, Y: int32(pos.Y)*tileSize + ui.offsetY, W: tileSize, H: tileSize})
+			err = ui.renderer.Copy(ui.textureAtlas, monsterSrcRect, &sdl.Rect{X: int32(pos.X)*tileSize + ui.offsetX, Y: int32(pos.Y)*tileSize + ui.offsetY, W: tileSize, H: tileSize})
 			game.CheckError(err)
 		}
 	}
@@ -218,7 +218,7 @@ func (ui *ui) displayItems(level *game.Level) {
 		if level.Map[pos.Y][pos.X].Visible {
 			for _, item := range items {
 				var size int32
-				var itemSrcRect sdl.Rect
+				var itemSrcRect *sdl.Rect
 				var itemSrcTex *sdl.Texture
 				size = tileSize
 				switch item.(type) {
@@ -241,12 +241,12 @@ func (ui *ui) displayItems(level *game.Level) {
 					ui.textureIndexItems.mu.RUnlock()
 					itemSrcTex = ui.textureAtlas
 				case game.OpenableItem:
-					itemSrcRect = *ui.chests[item.(game.OpenableItem).GetSize()]
+					itemSrcRect = ui.textureIndexChests.rects[rune(item.(game.OpenableItem).GetSize())][0]
 					itemSrcTex = ui.chestsTex
 					size = tileSize
 				}
 
-				err := ui.renderer.Copy(itemSrcTex, &itemSrcRect, &sdl.Rect{X: int32(pos.X)*tileSize + ui.offsetX, Y: int32(pos.Y)*tileSize + ui.offsetY, W: size, H: size})
+				err := ui.renderer.Copy(itemSrcTex, itemSrcRect, &sdl.Rect{X: int32(pos.X)*tileSize + ui.offsetX, Y: int32(pos.Y)*tileSize + ui.offsetY, W: size, H: size})
 				game.CheckError(err)
 			}
 		}
@@ -300,7 +300,7 @@ func (ui *ui) displayTileAnimation(level *game.Level, duration time.Duration, p 
 
 	for range time.Tick(500 * time.Millisecond) {
 		textureIndex.mu.RLock()
-		ui.animations[animation] = &textureIndex.rects[animation][currentFrame]
+		ui.animations[animation] = textureIndex.rects[animation][currentFrame]
 		textureIndex.mu.RUnlock()
 
 		if started {
@@ -319,7 +319,7 @@ func (ui *ui) displayTileAnimation(level *game.Level, duration time.Duration, p 
 	level.Map[p.Y][p.X].AnimRune = tempTile
 }
 
-func (ui *ui) displayMovingAnimation(level *game.Level, duration time.Duration, animation rune, poss []game.Pos, textureIndex *TextureIndex) {
+func (ui *ui) displayMovingAnimation(level *game.Level, duration time.Duration, poss []game.Pos, animation rune, textureIndex *TextureIndex) {
 	for _, pos := range poss {
 		ui.displayTileAnimation(level, duration, pos, animation, textureIndex)
 	}

@@ -56,8 +56,8 @@ type EquipableItem interface {
 type OpenableItem interface {
 	Item
 	GetSize() int
-	GetItems() *[]Item
-	RemoveItem(*Item)
+	GetItems() []Item
+	RemoveItems()
 	GetPos() Pos
 	GetState() bool
 	Open()
@@ -166,7 +166,7 @@ func (game *Game) slotFreeToEquip(itemToCheck EquipableItem) bool {
 	return true
 }
 
-func randomLoot(p Pos, numItems int) *[]Item {
+func randomLoot(p Pos, numItems int) []Item {
 	items := make([]Item, 0)
 
 	for i := 0; i < numItems; i++ {
@@ -187,5 +187,5 @@ func randomLoot(p Pos, numItems int) *[]Item {
 		}
 	}
 
-	return &items
+	return items
 }

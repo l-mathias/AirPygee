@@ -25,16 +25,11 @@ func (t *TreasureChest) SetPos(pos Pos) {
 func (t *TreasureChest) GetSize() int {
 	return t.Size
 }
-func (t *TreasureChest) GetItems() *[]Item {
-	return &t.Items
+func (t *TreasureChest) GetItems() []Item {
+	return t.Items
 }
-func (t *TreasureChest) RemoveItem(item *Item) {
-	for i, v := range t.Items {
-		if &v == item {
-			t.Items = append(t.Items[:i], t.Items[i+1:]...)
-			break
-		}
-	}
+func (t *TreasureChest) RemoveItems() {
+	t.Items = nil
 }
 func (t *TreasureChest) GetPos() Pos {
 	return t.Pos
@@ -59,17 +54,14 @@ func NewTreasureChest(p Pos, size int) *TreasureChest {
 			Type:        TreasureChests,
 			Description: "A treasure chest...",
 		},
-		Items: *items,
+		Items: items,
 		Size:  size,
 	}
 }
 
 func (game *Game) OpenItem(chest OpenableItem) {
-	items := chest.GetItems()
-	for _, item := range *items {
-		game.CurrentLevel.Items[game.CurrentLevel.Player.Pos] = append(game.CurrentLevel.Items[game.CurrentLevel.Player.Pos], item)
-		chest.RemoveItem(&item)
-	}
+	game.CurrentLevel.Items[game.CurrentLevel.Player.Pos] = chest.GetItems()
+	chest.RemoveItems()
 	chest.Open()
 	game.CurrentLevel.AddEvent(game.CurrentLevel.Player.Name + " Opened chest")
 	game.CurrentLevel.LastEvent = OpenChest

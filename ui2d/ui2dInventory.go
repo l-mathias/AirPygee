@@ -170,10 +170,10 @@ func (ui *ui) drawInventory(level *game.Level) {
 		}
 
 		if item == ui.draggedItem {
-			err = ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: int32(ui.currentMouseState.pos.X) - ui.itemW/2, Y: int32(ui.currentMouseState.pos.Y) - ui.itemH/2, W: ui.itemW, H: ui.itemH})
+			err = ui.renderer.Copy(ui.textureAtlas, itemSrcRect, &sdl.Rect{X: int32(ui.currentMouseState.pos.X) - ui.itemW/2, Y: int32(ui.currentMouseState.pos.Y) - ui.itemH/2, W: ui.itemW, H: ui.itemH})
 			game.CheckError(err)
 		} else {
-			err = ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: locationX, Y: locationY, W: ui.itemW, H: ui.itemH})
+			err = ui.renderer.Copy(ui.textureAtlas, itemSrcRect, &sdl.Rect{X: locationX, Y: locationY, W: ui.itemW, H: ui.itemH})
 			game.CheckError(err)
 		}
 	}
@@ -192,7 +192,7 @@ func (ui *ui) drawInventory(level *game.Level) {
 		locationY = ui.invOffsetY + ui.itemH*countY
 
 		if item == ui.draggedItem {
-			err = ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: int32(ui.currentMouseState.pos.X) - ui.itemW/2, Y: int32(ui.currentMouseState.pos.Y) - ui.itemH/2, W: ui.itemW, H: ui.itemH})
+			err = ui.renderer.Copy(ui.textureAtlas, itemSrcRect, &sdl.Rect{X: int32(ui.currentMouseState.pos.X) - ui.itemW/2, Y: int32(ui.currentMouseState.pos.Y) - ui.itemH/2, W: ui.itemW, H: ui.itemH})
 			game.CheckError(err)
 		} else {
 			var size int32
@@ -213,7 +213,7 @@ func (ui *ui) drawInventory(level *game.Level) {
 					locationY += ui.itemH/2 - size/2
 				}
 			}
-			err = ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: locationX, Y: locationY, W: size, H: size})
+			err = ui.renderer.Copy(ui.textureAtlas, itemSrcRect, &sdl.Rect{X: locationX, Y: locationY, W: size, H: size})
 			game.CheckError(err)
 		}
 		countX++

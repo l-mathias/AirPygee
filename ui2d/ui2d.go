@@ -81,7 +81,7 @@ type coloredFont struct {
 
 type TextureIndex struct {
 	mu    sync.RWMutex
-	rects map[rune][]sdl.Rect
+	rects map[rune][]*sdl.Rect
 }
 
 type Damage struct {
@@ -117,13 +117,12 @@ type ui struct {
 
 	//chests
 	chestsTex *sdl.Texture
-	chests    map[int]*sdl.Rect
 
 	// UI Theme
 	uipack       *sdl.Texture
 	texturesList SubTextures
 
-	textureIndexTiles, textureIndexMonsters, textureIndexItems, textureIndexAnims TextureIndex
+	textureIndexTiles, textureIndexMonsters, textureIndexItems, textureIndexAnims, textureIndexChests TextureIndex
 
 	//animations
 	animations       map[rune]*sdl.Rect
@@ -164,7 +163,7 @@ func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 	ui.str2TexLarge.texs = make(map[coloredFont]*sdl.Texture)
 	ui.animations = make(map[rune]*sdl.Rect)
 	ui.damagesToDisplay = make(map[string]*Damage)
-	ui.chests = make(map[int]*sdl.Rect)
+	ui.textureIndexChests.rects = make(map[rune][]*sdl.Rect)
 	ui.r = rand.New(rand.NewSource(1))
 	ui.winWidth = 1280
 	ui.winHeight = 720
@@ -361,7 +360,7 @@ func (ui *ui) stringToTexture(s string, color sdl.Color, size FontSize) *sdl.Tex
 }
 
 func (ui *ui) loadTextureIndex(textureIndex *TextureIndex, fileName string) {
-	textureIndex.rects = make(map[rune][]sdl.Rect)
+	textureIndex.rects = make(map[rune][]*sdl.Rect)
 
 	infile, err := os.Open(fileName)
 	game.CheckError(err)
@@ -382,9 +381,9 @@ func (ui *ui) loadTextureIndex(textureIndex *TextureIndex, fileName string) {
 		variationCount, err := strconv.ParseInt(strings.TrimSpace(splitXyC[2]), 10, 64)
 		game.CheckError(err)
 
-		var rects []sdl.Rect
+		var rects []*sdl.Rect
 		for i := int64(0); i < variationCount; i++ {
-			rects = append(rects, sdl.Rect{X: int32(x) * tileSize, Y: int32(y) * tileSize, W: tileSize, H: tileSize})
+			rects = append(rects, &sdl.Rect{X: int32(x) * tileSize, Y: int32(y) * tileSize, W: tileSize, H: tileSize})
 			x++
 			if x > 62 {
 				x = 0
@@ -467,7 +466,13 @@ func (ui *ui) LoadTreasureChests() {
 	count := 0
 	for y := 0; y < 2; y++ {
 		for x := 0; x < 4; x++ {
-			ui.chests[count] = &sdl.Rect{X: int32(x) * image.W / 4, Y: int32(y) * image.H / 2, W: (image.W / 4) / 3, H: (image.H / 2) / 4}
+			//open to closed animations
+			w := (image.W / 4) / 3
+			h := (image.H / 2) / 4
+			ui.textureIndexChests.rects[rune(count)] = append(ui.textureIndexChests.rects[rune(count)], &sdl.Rect{X: int32(x) * image.W / 4, Y: int32(y)*image.H/2 + (h * 0), W: w, H: h})
+			ui.textureIndexChests.rects[rune(count)] = append(ui.textureIndexChests.rects[rune(count)], &sdl.Rect{X: int32(x) * image.W / 4, Y: int32(y)*image.H/2 + (h * 1), W: w, H: h})
+			ui.textureIndexChests.rects[rune(count)] = append(ui.textureIndexChests.rects[rune(count)], &sdl.Rect{X: int32(x) * image.W / 4, Y: int32(y)*image.H/2 + (h * 2), W: w, H: h})
+			ui.textureIndexChests.rects[rune(count)] = append(ui.textureIndexChests.rects[rune(count)], &sdl.Rect{X: int32(x) * image.W / 4, Y: int32(y)*image.H/2 + (h * 3), W: w, H: h})
 			count++
 		}
 	}
@@ -534,7 +539,7 @@ func (ui *ui) draw(level *game.Level) {
 						game.CheckError(err)
 					}
 
-					err = ui.renderer.Copy(ui.textureAtlas, &srcRect, &dstRect)
+					err = ui.renderer.Copy(ui.textureAtlas, srcRect, &dstRect)
 					game.CheckError(err)
 
 					if tile.OverlayRune != game.Blank {
@@ -544,14 +549,14 @@ func (ui *ui) draw(level *game.Level) {
 						ui.textureIndexTiles.mu.RUnlock()
 						srcRect = srcRects[0]
 
-						err = ui.renderer.Copy(ui.textureAtlas, &srcRect, &dstRect)
+						err = ui.renderer.Copy(ui.textureAtlas, srcRect, &dstRect)
 						game.CheckError(err)
 					}
 
 					// display current running animation if any
 					if tile.AnimRune != game.Blank {
-						srcRect = *ui.animations[tile.AnimRune]
-						err = ui.renderer.Copy(ui.textureAtlas, &srcRect, &dstRect)
+						srcRect = ui.animations[tile.AnimRune]
+						err = ui.renderer.Copy(ui.textureAtlas, srcRect, &dstRect)
 						game.CheckError(err)
 					}
 				}
@@ -577,7 +582,7 @@ func (ui *ui) draw(level *game.Level) {
 				itemSrcRect := ui.textureIndexItems.rects[item.GetRune()][0]
 				ui.textureIndexItems.mu.RUnlock()
 
-				err = ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &sdl.Rect{X: int32(ui.winWidth) - tileSize - int32(i)*tileSize, Y: 0, W: tileSize, H: tileSize})
+				err = ui.renderer.Copy(ui.textureAtlas, itemSrcRect, &sdl.Rect{X: int32(ui.winWidth) - tileSize - int32(i)*tileSize, Y: 0, W: tileSize, H: tileSize})
 				game.CheckError(err)
 				// drawing help letter T
 				err = ui.renderer.Copy(ui.tileMap, &sdl.Rect{X: 358, Y: 34, W: 16, H: 16}, &sdl.Rect{X: int32(ui.winWidth) - tileSize - int32(len(groundItems))*tileSize, Y: 0, W: tileSize, H: tileSize})
@@ -654,7 +659,7 @@ func (ui *ui) fire(level *game.Level, attackRange int) {
 
 		positions = append(positions, game.Pos{X: x, Y: y})
 	}
-	go ui.displayMovingAnimation(level, 500*time.Millisecond, direction, positions, &ui.textureIndexAnims)
+	go ui.displayMovingAnimation(level, 500*time.Millisecond, positions, direction, &ui.textureIndexAnims)
 }
 
 // Run main UI loop
@@ -722,7 +727,7 @@ func (ui *ui) Run() {
 				switch e.Keysym.Sym {
 				case sdl.K_a:
 					pos := []game.Pos{{3, 2}}
-					go ui.displayMovingAnimation(newLevel, 5*time.Second, game.AnimatedPortal, pos, &ui.textureIndexAnims)
+					go ui.displayMovingAnimation(newLevel, 5*time.Second, pos, game.AnimatedPortal, &ui.textureIndexAnims)
 					//ui.fire(newLevel, 3)
 				case sdl.K_ESCAPE:
 					if ui.state == UIMain {
@@ -747,7 +752,10 @@ func (ui *ui) Run() {
 					if newLevel.Items[pos] != nil {
 						switch newLevel.Items[pos][0].(type) {
 						case game.OpenableItem:
-							input = game.Input{Typ: game.Action, Item: newLevel.Items[pos][0]}
+							if newLevel.Map[pos.Y][pos.X].Actionable {
+								input = game.Input{Typ: game.Action, Item: newLevel.Items[pos][0]}
+								go ui.displayTileAnimation(newLevel, 5*time.Second, pos, rune(newLevel.Items[pos][0].(game.OpenableItem).GetSize()), &ui.textureIndexChests)
+							}
 						default:
 							input = game.Input{Typ: game.Action}
 						}

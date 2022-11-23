@@ -9,7 +9,7 @@ type Monster struct {
 	Character
 }
 
-func randomizeLoot(p Pos) *[]Item {
+func randomizeLoot(p Pos) []Item {
 	//items := make([]Item, 0)
 	numItems := 0
 
@@ -61,7 +61,7 @@ func NewBat(p Pos) *Monster {
 		Armor:        0,
 		Speed:        2.0,
 		ActionPoints: 0.0,
-		Items:        *items,
+		Items:        items,
 	}}
 }
 
@@ -77,7 +77,7 @@ func NewRat(p Pos) *Monster {
 		Armor:        0,
 		Speed:        2.0,
 		ActionPoints: 0.0,
-		Items:        *items,
+		Items:        items,
 	}}
 }
 
@@ -93,7 +93,7 @@ func NewSpider(p Pos) *Monster {
 		Armor:        0,
 		Speed:        1.0,
 		ActionPoints: 0.0,
-		Items:        *items,
+		Items:        items,
 	}}
 }
 
@@ -140,7 +140,6 @@ func (m *Monster) Move(to Pos, game *Game) {
 
 	if to == game.CurrentLevel.Player.Pos {
 		game.CurrentLevel.Attack(&m.Character, &game.CurrentLevel.Player.Character)
-
 		if m.Health <= 0 {
 			delete(game.CurrentLevel.Monsters, m.Pos)
 		}
