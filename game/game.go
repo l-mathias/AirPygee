@@ -809,9 +809,35 @@ func (level *Level) astar(start Pos, goal Pos) []Pos {
 	return nil
 }
 
+func (game *Game) findValidPosition() Pos {
+	posList := make([]Pos, 0)
+	for y := range game.CurrentLevel.Map {
+		line := game.CurrentLevel.Map[y]
+		for x, c := range line {
+			switch c.Walkable {
+			case true:
+				posList = append(posList, Pos{X: x, Y: y})
+			}
+		}
+	}
+	randIndex, err := rand.Int(rand.Reader, big.NewInt(int64(len(posList))))
+	CheckError(err)
+	return posList[randIndex.Int64()]
+}
+
+func (game *Game) randomizeChests(numChests int) {
+	for i := 0; i < numChests; i++ {
+		randPos := game.findValidPosition()
+		game.CurrentLevel.Items[randPos] = append(game.CurrentLevel.Items[randPos], NewTreasureChest(randPos, 3))
+		game.CurrentLevel.Map[randPos.Y][randPos.X].Walkable = false
+		game.CurrentLevel.Map[randPos.Y][randPos.X].Actionable = true
+	}
+}
+
 func (game *Game) Run() {
 	game.Levels = game.loadLevels()
 	game.loadWorld()
+	game.randomizeChests(2)
 	game.CurrentLevel.lineOfSight()
 
 	for _, lchan := range game.LevelChans {

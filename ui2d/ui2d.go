@@ -333,9 +333,7 @@ func (ui *ui) stringToTexture(s string, color sdl.Color, size FontSize) *sdl.Tex
 		ui.str2TexLarge.mu.RUnlock()
 	}
 	fontSurface, err := font.RenderUTF8Blended(s, color)
-	if err != nil {
-		panic(err)
-	}
+	game.CheckError(err)
 	defer fontSurface.Free()
 
 	tex, err := ui.renderer.CreateTextureFromSurface(fontSurface)

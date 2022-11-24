@@ -10,43 +10,25 @@ type Monster struct {
 }
 
 func randomizeLoot(p Pos) []Item {
-	//items := make([]Item, 0)
 	numItems := 0
 
 	number, err := rand.Int(rand.Reader, big.NewInt(100))
 	CheckError(err)
 
 	switch {
-	case number.Int64() <= 2:
+	case number.Int64() <= 1:
 		numItems = 4
-	case number.Int64() > 2 && number.Int64() <= 10:
+	case number.Int64() > 1 && number.Int64() <= 5:
 		numItems = 3
-	case number.Int64() > 10 && number.Int64() <= 20:
+	case number.Int64() > 5 && number.Int64() <= 15:
 		numItems = 2
-	case number.Int64() > 20 && number.Int64() <= 40:
+	case number.Int64() > 15 && number.Int64() <= 35:
 		numItems = 1
-	case number.Int64() > 40 && number.Int64() <= 100:
+	case number.Int64() > 35 && number.Int64() <= 100:
 		numItems = 0
 	}
 
 	return randomLoot(p, numItems)
-	//for i := 0; i < numItems; i++ {
-	//	number, err = rand.Int(rand.Reader, big.NewInt(100))
-	//	CheckError(err)
-	//	switch number.Int64() {
-	//	case 0:
-	//		items = append(items, NewSword(Pos{}))
-	//	case 1:
-	//		items = append(items, NewHelmet(Pos{}))
-	//	case 2:
-	//		items = append(items, NewHealthPotion(Pos{}, "Small"))
-	//	case 3:
-	//		items = append(items, NewBoots(Pos{}))
-	//	case 4:
-	//		items = append(items, NewPlate(Pos{}))
-	//	}
-	//}
-	//return &items
 }
 
 func NewBat(p Pos) *Monster {
