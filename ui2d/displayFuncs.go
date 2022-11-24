@@ -304,15 +304,20 @@ func (ui *ui) displayTileAnimation(level *game.Level, duration time.Duration, p 
 		textureIndex.mu.RUnlock()
 
 		if started {
+			level.Items[p] = nil
 			level.Map[p.Y][p.X].AnimRune = animation
 			started = false
 		}
 
 		currentFrame++
 		if currentFrame == numFrames {
-			currentFrame = 0
+			if duration > 0 {
+				currentFrame = 0
+			} else {
+				return
+			}
 		}
-		if time.Since(timeStart) >= duration {
+		if time.Since(timeStart) >= duration && duration > 0 {
 			break
 		}
 	}

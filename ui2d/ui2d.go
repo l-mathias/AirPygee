@@ -556,7 +556,7 @@ func (ui *ui) draw(level *game.Level) {
 					// display current running animation if any
 					if tile.AnimRune != game.Blank {
 						srcRect = ui.animations[tile.AnimRune]
-						err = ui.renderer.Copy(ui.textureAtlas, srcRect, &dstRect)
+						err = ui.renderer.Copy(ui.chestsTex, srcRect, &dstRect)
 						game.CheckError(err)
 					}
 				}
@@ -754,7 +754,7 @@ func (ui *ui) Run() {
 						case game.OpenableItem:
 							if newLevel.Map[pos.Y][pos.X].Actionable {
 								input = game.Input{Typ: game.Action, Item: newLevel.Items[pos][0]}
-								go ui.displayTileAnimation(newLevel, 5*time.Second, pos, rune(newLevel.Items[pos][0].(game.OpenableItem).GetSize()), &ui.textureIndexChests)
+								go ui.displayTileAnimation(newLevel, 0, pos, rune(newLevel.Items[pos][0].(game.OpenableItem).GetSize()), &ui.textureIndexChests)
 							}
 						default:
 							input = game.Input{Typ: game.Action}
