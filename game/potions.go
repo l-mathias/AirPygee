@@ -40,11 +40,11 @@ func NewHealthPotion(p Pos, size string) *Potion {
 func (game *Game) consumePotion(item ConsumableItem) {
 	switch item.GetSize() {
 	case "Small":
-		game.heal(int(float64(game.CurrentLevel.Player.MaxHealth) * .25))
+		game.heal(&game.CurrentLevel.Player.Character, int(float64(game.CurrentLevel.Player.MaxHealth)*.25))
 	case "Medium":
-		game.heal(int(float64(game.CurrentLevel.Player.MaxHealth) * .50))
+		game.heal(&game.CurrentLevel.Player.Character, int(float64(game.CurrentLevel.Player.MaxHealth)*.50))
 	case "Large":
-		game.heal(int(float64(game.CurrentLevel.Player.MaxHealth) * .75))
+		game.heal(&game.CurrentLevel.Player.Character, int(float64(game.CurrentLevel.Player.MaxHealth)*.75))
 	}
 	game.removeInventoryItem(item, &game.CurrentLevel.Player.Character)
 	game.CurrentLevel.AddEvent(game.CurrentLevel.Player.Character.Name + " consumed " + item.GetSize() + item.GetName())

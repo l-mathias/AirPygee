@@ -417,16 +417,17 @@ func (game *Game) resolveMovement(pos Pos) {
 			game.dead()
 		}
 	} else if canWalk(level, pos) {
+		level.Player.WantedTo = pos
 		game.Move(pos)
 	} else {
 		level.Player.WantedTo = pos
 	}
 }
 
-func (game *Game) heal(hp int) {
-	game.CurrentLevel.Player.Health += hp
-	if game.CurrentLevel.Player.Health > game.CurrentLevel.Player.MaxHealth {
-		game.CurrentLevel.Player.Health = game.CurrentLevel.Player.MaxHealth
+func (game *Game) heal(c *Character, hp int) {
+	c.Health += hp
+	if c.Health > c.MaxHealth {
+		c.Health = c.MaxHealth
 	}
 }
 
@@ -448,8 +449,8 @@ func (game *Game) action(pos Pos, item Item) {
 }
 
 func (level *Level) FrontOf() Pos {
-	cameFrom := level.Player.CameFrom
-	currentPos := level.Player.Pos
+	cameFrom := &level.Player.CameFrom
+	currentPos := &level.Player.Pos
 	switch {
 	case cameFrom.X < currentPos.X:
 		return Pos{currentPos.X + 1, currentPos.Y}
@@ -459,7 +460,7 @@ func (level *Level) FrontOf() Pos {
 		return Pos{currentPos.X, currentPos.Y + 1}
 	case cameFrom.Y > currentPos.Y:
 		return Pos{currentPos.X, currentPos.Y - 1}
-	case cameFrom == currentPos:
+	case *cameFrom == *currentPos:
 		return level.Player.WantedTo
 	default:
 		return Pos{}
@@ -696,11 +697,11 @@ func (game *Game) loadLevels() map[string]*Level {
 				}
 			}
 		}
+		randomizeChests(2, level)
+		randomizeMonsters(3, level)
 		levels[levelName] = level
 		err = file.Close()
-		if err != nil {
-			panic(err)
-		}
+		CheckError(err)
 	}
 
 	return levels
@@ -809,10 +810,10 @@ func (level *Level) astar(start Pos, goal Pos) []Pos {
 	return nil
 }
 
-func (game *Game) findValidPosition() Pos {
+func findValidPosition(level *Level) Pos {
 	posList := make([]Pos, 0)
-	for y := range game.CurrentLevel.Map {
-		line := game.CurrentLevel.Map[y]
+	for y := range level.Map {
+		line := level.Map[y]
 		for x, c := range line {
 			switch c.Walkable {
 			case true:
@@ -825,19 +826,66 @@ func (game *Game) findValidPosition() Pos {
 	return posList[randIndex.Int64()]
 }
 
-func (game *Game) randomizeChests(numChests int) {
+func randomChest() int {
+	randIndex, err := rand.Int(rand.Reader, big.NewInt(100))
+	CheckError(err)
+
+	switch {
+	case randIndex.Int64() < 2:
+		return 8
+	case randIndex.Int64() < 5:
+		return 7
+	case randIndex.Int64() < 7:
+		return 6
+	case randIndex.Int64() < 15:
+		return 5
+	case randIndex.Int64() < 20:
+		return 4
+	case randIndex.Int64() < 30:
+		return 3
+	case randIndex.Int64() < 40:
+		return 2
+	case randIndex.Int64() <= 100:
+		return 1
+	}
+	return 0
+}
+
+func randomizeChests(numChests int, level *Level) {
 	for i := 0; i < numChests; i++ {
-		randPos := game.findValidPosition()
-		game.CurrentLevel.Items[randPos] = append(game.CurrentLevel.Items[randPos], NewTreasureChest(randPos, 3))
-		game.CurrentLevel.Map[randPos.Y][randPos.X].Walkable = false
-		game.CurrentLevel.Map[randPos.Y][randPos.X].Actionable = true
+		randPos := findValidPosition(level)
+		randSize := randomChest()
+		level.Items[randPos] = append(level.Items[randPos], NewTreasureChest(randPos, randSize))
+		level.Map[randPos.Y][randPos.X].Walkable = false
+		level.Map[randPos.Y][randPos.X].Actionable = true
+	}
+}
+
+func randomMonster(p Pos) *Monster {
+	number, err := rand.Int(rand.Reader, big.NewInt(2))
+	CheckError(err)
+
+	switch {
+	case number.Int64() == 0:
+		return NewBat(p)
+	case number.Int64() == 1:
+		return NewSpider(p)
+	case number.Int64() == 2:
+		return NewRat(p)
+	}
+	return NewRat(p)
+}
+
+func randomizeMonsters(numMonsters int, level *Level) {
+	for i := 0; i < numMonsters; i++ {
+		randPos := findValidPosition(level)
+		level.Monsters[randPos] = randomMonster(randPos)
 	}
 }
 
 func (game *Game) Run() {
 	game.Levels = game.loadLevels()
 	game.loadWorld()
-	game.randomizeChests(2)
 	game.CurrentLevel.lineOfSight()
 
 	for _, lchan := range game.LevelChans {

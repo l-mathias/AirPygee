@@ -45,7 +45,7 @@ func (t *TreasureChest) Close() {
 }
 
 func NewTreasureChest(p Pos, size int) *TreasureChest {
-	items := randomLoot(p, size)
+	items := randomLoot(p, size+1)
 	return &TreasureChest{
 		Entity: Entity{
 			Pos:         p,

@@ -11,6 +11,7 @@ import (
 // displayStats is displaying player stats
 func (ui *ui) displayStats(level *game.Level) {
 
+	var tex *sdl.Texture
 	statsPanel := ui.getRectFromTextureName("panel_brown.png")
 	statsPanelOffsetY := int32(float64(ui.winHeight) * 0.10)
 
@@ -18,7 +19,7 @@ func (ui *ui) displayStats(level *game.Level) {
 	game.CheckError(err)
 
 	// Drawing Health count
-	tex := ui.stringToTexture("Life "+strconv.Itoa(level.Player.Health), sdl.Color{R: 139, G: 69, B: 19}, FontMedium)
+	tex = ui.stringToTexture("Life "+strconv.Itoa(level.Player.Health), sdl.Color{R: 139, G: 69, B: 19}, FontMedium)
 	_, _, w, h, _ := tex.Query()
 
 	err = ui.renderer.Copy(tex, nil, &sdl.Rect{X: int32(float64(statsPanel.W) * .10), Y: statsPanelOffsetY + int32(float64(statsPanel.H)*.05), W: w, H: h})
@@ -44,7 +45,6 @@ func (ui *ui) displayStats(level *game.Level) {
 
 	err = ui.renderer.Copy(tex, nil, &sdl.Rect{X: int32(float64(statsPanel.W) * .10), Y: statsPanelOffsetY + int32(float64(statsPanel.H)*.65), W: w, H: h})
 	game.CheckError(err)
-
 }
 
 func (ui *ui) getColorFromHealth(health float64) (r, g, b, a uint8) {

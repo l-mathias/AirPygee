@@ -8,6 +8,7 @@ import (
 	"AirPygee/game"
 	"bufio"
 	"encoding/xml"
+	"fmt"
 	"github.com/veandco/go-sdl2/img"
 	"github.com/veandco/go-sdl2/mix"
 	"github.com/veandco/go-sdl2/sdl"
@@ -303,14 +304,13 @@ type sounds struct {
 type FontSize int
 
 func (ui *ui) stringToTexture(s string, color sdl.Color, size FontSize) *sdl.Texture {
-
-	coloredFont := coloredFont{s, color}
+	colorFont := coloredFont{s, color}
 	var font *ttf.Font
 	switch size {
 	case FontSmall:
 		font = ui.fontSmall
 		ui.str2TexSmall.mu.RLock()
-		if tex, exists := ui.str2TexSmall.texs[coloredFont]; exists {
+		if tex, exists := ui.str2TexSmall.texs[colorFont]; exists {
 			ui.str2TexSmall.mu.RUnlock()
 			return tex
 		}
@@ -318,7 +318,7 @@ func (ui *ui) stringToTexture(s string, color sdl.Color, size FontSize) *sdl.Tex
 	case FontMedium:
 		font = ui.fontMedium
 		ui.str2TexMedium.mu.RLock()
-		if tex, exists := ui.str2TexMedium.texs[coloredFont]; exists {
+		if tex, exists := ui.str2TexMedium.texs[colorFont]; exists {
 			ui.str2TexMedium.mu.RUnlock()
 			return tex
 		}
@@ -326,12 +326,14 @@ func (ui *ui) stringToTexture(s string, color sdl.Color, size FontSize) *sdl.Tex
 	case FontLarge:
 		font = ui.fontLarge
 		ui.str2TexLarge.mu.RLock()
-		if tex, exists := ui.str2TexLarge.texs[coloredFont]; exists {
+		if tex, exists := ui.str2TexLarge.texs[colorFont]; exists {
 			ui.str2TexLarge.mu.RUnlock()
 			return tex
 		}
 		ui.str2TexLarge.mu.RUnlock()
 	}
+	fmt.Println(s)
+
 	fontSurface, err := font.RenderUTF8Blended(s, color)
 	game.CheckError(err)
 	defer fontSurface.Free()
@@ -342,15 +344,15 @@ func (ui *ui) stringToTexture(s string, color sdl.Color, size FontSize) *sdl.Tex
 	switch size {
 	case FontSmall:
 		ui.str2TexSmall.mu.Lock()
-		ui.str2TexSmall.texs[coloredFont] = tex
+		ui.str2TexSmall.texs[colorFont] = tex
 		ui.str2TexSmall.mu.Unlock()
 	case FontMedium:
 		ui.str2TexMedium.mu.Lock()
-		ui.str2TexMedium.texs[coloredFont] = tex
+		ui.str2TexMedium.texs[colorFont] = tex
 		ui.str2TexMedium.mu.Unlock()
 	case FontLarge:
 		ui.str2TexLarge.mu.Lock()
-		ui.str2TexLarge.texs[coloredFont] = tex
+		ui.str2TexLarge.texs[colorFont] = tex
 		ui.str2TexLarge.mu.Unlock()
 	}
 
@@ -461,7 +463,7 @@ func (ui *ui) LoadTreasureChests() {
 	ui.chestsTex, err = ui.renderer.CreateTextureFromSurface(image)
 	game.CheckError(err)
 
-	count := 0
+	count := 1
 	for y := 0; y < 2; y++ {
 		for x := 0; x < 4; x++ {
 			//open to closed animations
@@ -552,6 +554,7 @@ func (ui *ui) draw(level *game.Level) {
 					}
 
 					// display current running animation if any
+					//TODO - switch between ui.textureAtlas and chestsTex
 					if tile.AnimRune != game.Blank {
 						srcRect = ui.animations[tile.AnimRune]
 						err = ui.renderer.Copy(ui.chestsTex, srcRect, &dstRect)
@@ -590,7 +593,8 @@ func (ui *ui) draw(level *game.Level) {
 		}
 	}
 
-	if level.Map[level.FrontOf().Y][level.FrontOf().X].Actionable {
+	front := level.FrontOf()
+	if level.Map[front.Y][front.X].Actionable {
 		// drawing help letter E
 		err = ui.renderer.Copy(ui.tileMap, &sdl.Rect{X: 324, Y: 34, W: 16, H: 16}, &sdl.Rect{X: int32(ui.winWidth) - tileSize - tileSize, Y: 0, W: tileSize, H: tileSize})
 		game.CheckError(err)
@@ -724,9 +728,15 @@ func (ui *ui) Run() {
 				}
 				switch e.Keysym.Sym {
 				case sdl.K_a:
-					pos := []game.Pos{{3, 2}}
-					go ui.displayMovingAnimation(newLevel, 5*time.Second, pos, game.AnimatedPortal, &ui.textureIndexAnims)
+					//pos := []game.Pos{{3, 2}}
+					//go ui.displayMovingAnimation(newLevel, 5*time.Second, pos, game.AnimatedPortal, &ui.textureIndexAnims)
 					//ui.fire(newLevel, 3)
+					tex := ui.stringToTexture("3", sdl.Color{R: 139, G: 69, B: 19}, FontMedium)
+					fmt.Println(tex)
+					//_, _, w, h, _ := tex.Query()
+					tex = ui.stringToTexture("Life 13", sdl.Color{R: 139, G: 69, B: 19}, FontMedium)
+					fmt.Println(tex)
+					//_, _, w, h, _ := tex.Query()
 				case sdl.K_ESCAPE:
 					if ui.state == UIMain {
 						ui.state = UIMenu
@@ -776,9 +786,8 @@ func (ui *ui) Run() {
 				}
 			}
 		}
-
 		ui.renderer.Present()
-		sdl.Delay(1)
+		sdl.Delay(5)
 		ui.prevMouseState = ui.currentMouseState
 	}
 }
