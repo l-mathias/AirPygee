@@ -10,40 +10,67 @@ import (
 
 // displayStats is displaying player stats
 func (ui *ui) displayStats(level *game.Level) {
-
 	var tex *sdl.Texture
-	statsPanel := ui.getRectFromTextureName("panel_brown.png")
+	color := sdl.Color{R: 255, G: 215, B: 0, A: 255}
+	statsColor := sdl.Color{R: 255, G: 255, B: 255, A: 255}
+	panelWidth := int32(float64(ui.winWidth) * 0.20)
+	panelHeight := int32(float64(ui.winHeight) * 0.30)
+
 	statsPanelOffsetY := int32(float64(ui.winHeight) * 0.10)
 
-	err := ui.renderer.Copy(ui.uipack, statsPanel, &sdl.Rect{X: 0, Y: statsPanelOffsetY, W: int32(float64(ui.winWidth) * 0.20), H: int32(float64(ui.winHeight) * 0.30)})
+	err := ui.renderer.Copy(ui.metalPlate, nil, &sdl.Rect{X: 0, Y: statsPanelOffsetY, W: panelWidth, H: panelHeight})
 	game.CheckError(err)
 
 	// Drawing Health count
-	tex = ui.stringToTexture("Life "+strconv.Itoa(level.Player.Health), sdl.Color{R: 139, G: 69, B: 19}, FontMedium)
+	tex = ui.stringToTexture("Life:", color, FontSmall)
 	_, _, w, h, _ := tex.Query()
 
-	err = ui.renderer.Copy(tex, nil, &sdl.Rect{X: int32(float64(statsPanel.W) * .10), Y: statsPanelOffsetY + int32(float64(statsPanel.H)*.05), W: w, H: h})
+	err = ui.renderer.Copy(tex, nil, &sdl.Rect{X: int32(float64(panelWidth) * .15), Y: statsPanelOffsetY + int32(float64(panelHeight)*.15), W: w, H: h})
+	game.CheckError(err)
+
+	tex = ui.stringToTexture(fmt.Sprintf("%v", level.Player.Health), statsColor, FontSmall)
+	_, _, w, h, _ = tex.Query()
+
+	err = ui.renderer.Copy(tex, nil, &sdl.Rect{X: int32(float64(panelWidth) * .5), Y: statsPanelOffsetY + int32(float64(panelHeight)*.15), W: w, H: h})
 	game.CheckError(err)
 
 	// Drawing Damage count
-	tex = ui.stringToTexture("Damage "+strconv.Itoa(level.Player.MinDamage)+" - "+strconv.Itoa(level.Player.MaxDamage), sdl.Color{R: 139, G: 69, B: 19}, FontMedium)
+	tex = ui.stringToTexture("Damage:", color, FontSmall)
 	_, _, w, h, _ = tex.Query()
 
-	err = ui.renderer.Copy(tex, nil, &sdl.Rect{X: int32(float64(statsPanel.W) * .10), Y: statsPanelOffsetY + int32(float64(statsPanel.H)*.25), W: w, H: h})
+	err = ui.renderer.Copy(tex, nil, &sdl.Rect{X: int32(float64(panelWidth) * .15), Y: statsPanelOffsetY + int32(float64(panelHeight)*.25), W: w, H: h})
+	game.CheckError(err)
+
+	tex = ui.stringToTexture(fmt.Sprintf("%v - %v", level.Player.MinDamage, level.Player.MaxDamage), statsColor, FontSmall)
+	_, _, w, h, _ = tex.Query()
+
+	err = ui.renderer.Copy(tex, nil, &sdl.Rect{X: int32(float64(panelWidth) * .5), Y: statsPanelOffsetY + int32(float64(panelHeight)*.25), W: w, H: h})
 	game.CheckError(err)
 
 	// Drawing Defense count
-	tex = ui.stringToTexture("Armor "+strconv.Itoa(level.Player.Armor), sdl.Color{R: 139, G: 69, B: 19}, FontMedium)
+	tex = ui.stringToTexture("Armor:", color, FontSmall)
 	_, _, w, h, _ = tex.Query()
 
-	err = ui.renderer.Copy(tex, nil, &sdl.Rect{X: int32(float64(statsPanel.W) * .10), Y: statsPanelOffsetY + int32(float64(statsPanel.H)*.45), W: w, H: h})
+	err = ui.renderer.Copy(tex, nil, &sdl.Rect{X: int32(float64(panelWidth) * .15), Y: statsPanelOffsetY + int32(float64(panelHeight)*.35), W: w, H: h})
+	game.CheckError(err)
+
+	tex = ui.stringToTexture(fmt.Sprintf("%v", level.Player.Armor), statsColor, FontSmall)
+	_, _, w, h, _ = tex.Query()
+
+	err = ui.renderer.Copy(tex, nil, &sdl.Rect{X: int32(float64(panelWidth) * .5), Y: statsPanelOffsetY + int32(float64(panelHeight)*.35), W: w, H: h})
 	game.CheckError(err)
 
 	// Drawing Critical count
-	tex = ui.stringToTexture("Critical "+fmt.Sprintf("%.2f %%", level.Player.Critical), sdl.Color{R: 139, G: 69, B: 19}, FontMedium)
+	tex = ui.stringToTexture("Critical:", color, FontSmall)
 	_, _, w, h, _ = tex.Query()
 
-	err = ui.renderer.Copy(tex, nil, &sdl.Rect{X: int32(float64(statsPanel.W) * .10), Y: statsPanelOffsetY + int32(float64(statsPanel.H)*.65), W: w, H: h})
+	err = ui.renderer.Copy(tex, nil, &sdl.Rect{X: int32(float64(panelWidth) * .15), Y: statsPanelOffsetY + int32(float64(panelHeight)*.45), W: w, H: h})
+	game.CheckError(err)
+
+	tex = ui.stringToTexture(fmt.Sprintf("%.2f %%", level.Player.Critical), statsColor, FontSmall)
+	_, _, w, h, _ = tex.Query()
+
+	err = ui.renderer.Copy(tex, nil, &sdl.Rect{X: int32(float64(panelWidth) * .5), Y: statsPanelOffsetY + int32(float64(panelHeight)*.45), W: w, H: h})
 	game.CheckError(err)
 }
 
@@ -64,6 +91,8 @@ func (ui *ui) getColorFromHealth(health float64) (r, g, b, a uint8) {
 // displayHUD draws general UI with remaining hit points and game instructions
 func (ui *ui) displayHUD(level *game.Level) {
 	//TODO - fix hardcoded value here
+	//arrows keys
+	// Move
 	firstFrameX := 512
 	for i := 0; i < 4; i++ {
 
@@ -72,11 +101,21 @@ func (ui *ui) displayHUD(level *game.Level) {
 
 	}
 
-	// Move instruction after arrows
 	tex := ui.stringToTexture("Move", sdl.Color{R: 255}, FontSmall)
 	_, _, w, h, _ := tex.Query()
 
 	err := ui.renderer.Copy(tex, nil, &sdl.Rect{X: 144, Y: 8, W: w, H: h})
+	game.CheckError(err)
+
+	// Inventory
+
+	err = ui.renderer.Copy(ui.tileMap, &sdl.Rect{X: 408, Y: 34, W: 16, H: 16}, &sdl.Rect{X: 98, Y: 32, W: tileSize, H: tileSize})
+	game.CheckError(err)
+
+	tex = ui.stringToTexture("Inventory", sdl.Color{R: 255}, FontSmall)
+	_, _, w, h, _ = tex.Query()
+
+	err = ui.renderer.Copy(tex, nil, &sdl.Rect{X: 144, Y: 40, W: w, H: h})
 	game.CheckError(err)
 
 	// Life gauge using red rect on black rect

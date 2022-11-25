@@ -180,11 +180,16 @@ func (level *Level) MoveItem(itemToMove Item, character *Character) {
 	pos := character.Pos
 	for i, item := range level.Items[pos] {
 		if item == itemToMove {
-			level.Items[pos] = append(level.Items[pos][:i], level.Items[pos][i+1:]...)
-			character.Items = append(character.Items, item)
-			level.AddEvent(character.Name + " picked up:" + item.GetName())
-			level.LastEvent = Pickup
-			return
+			if len(level.Player.Items) < level.Player.InventorySize {
+				level.Items[pos] = append(level.Items[pos][:i], level.Items[pos][i+1:]...)
+				character.Items = append(character.Items, item)
+				level.AddEvent(character.Name + " picked up:" + item.GetName())
+				level.LastEvent = Pickup
+				return
+			} else {
+				level.AddEvent("Inventory full")
+				return
+			}
 		}
 	}
 	panic("Tried to move an item we were not on top of")

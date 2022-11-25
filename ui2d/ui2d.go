@@ -121,6 +121,7 @@ type ui struct {
 
 	// UI Theme
 	uipack       *sdl.Texture
+	metalPlate   *sdl.Texture
 	texturesList SubTextures
 
 	textureIndexTiles, textureIndexMonsters, textureIndexItems, textureIndexAnims, textureIndexChests TextureIndex
@@ -181,6 +182,7 @@ func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 	ui.textureAtlas = ui.imgFileToTexture("ui2d/assets/tiles.png")
 	ui.tileMap = ui.imgFileToTexture("ui2d/assets/tilemap.png")
 	ui.uipack = ui.imgFileToTexture("ui2d/assets/uipack_rpg_sheet.png")
+	ui.metalPlate = ui.imgFileToTexture("ui2d/assets/metal_plate_tex.png")
 
 	ui.loadTextureIndex(&ui.textureIndexTiles, "ui2d/assets/atlas-index.txt")
 	ui.loadTextureIndex(&ui.textureIndexMonsters, "ui2d/assets/atlas-index-monsters.txt")
@@ -596,7 +598,7 @@ func (ui *ui) draw(level *game.Level) {
 	front := level.FrontOf()
 	if level.Map[front.Y][front.X].Actionable {
 		// drawing help letter E
-		err = ui.renderer.Copy(ui.tileMap, &sdl.Rect{X: 324, Y: 34, W: 16, H: 16}, &sdl.Rect{X: int32(ui.winWidth) - tileSize - tileSize, Y: 0, W: tileSize, H: tileSize})
+		err = ui.renderer.Copy(ui.tileMap, &sdl.Rect{X: 324, Y: 34, W: 16, H: 16}, &sdl.Rect{X: int32(front.X)*tileSize + ui.offsetX, Y: int32(front.Y-1)*tileSize + ui.offsetY, W: tileSize, H: tileSize})
 		game.CheckError(err)
 	}
 }
@@ -730,13 +732,7 @@ func (ui *ui) Run() {
 				case sdl.K_a:
 					//pos := []game.Pos{{3, 2}}
 					//go ui.displayMovingAnimation(newLevel, 5*time.Second, pos, game.AnimatedPortal, &ui.textureIndexAnims)
-					//ui.fire(newLevel, 3)
-					tex := ui.stringToTexture("3", sdl.Color{R: 139, G: 69, B: 19}, FontMedium)
-					fmt.Println(tex)
-					//_, _, w, h, _ := tex.Query()
-					tex = ui.stringToTexture("Life 13", sdl.Color{R: 139, G: 69, B: 19}, FontMedium)
-					fmt.Println(tex)
-					//_, _, w, h, _ := tex.Query()
+					ui.fire(newLevel, 3)
 				case sdl.K_ESCAPE:
 					if ui.state == UIMain {
 						ui.state = UIMenu
