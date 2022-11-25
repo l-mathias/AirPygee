@@ -32,6 +32,7 @@ const (
 	TakeItem
 	Equip
 	Drop
+	Restart
 )
 
 type Game struct {
@@ -394,14 +395,14 @@ func (game *Game) Move(to Pos) {
 	}
 }
 
-func (game *Game) restart() {
+func (game *Game) Restart() {
 	game.Levels = game.loadLevels()
 	game.loadWorld()
 	game.CurrentLevel.lineOfSight()
 }
 
 func (game *Game) dead() {
-	game.restart()
+	game.Restart()
 }
 
 func (game *Game) resolveMovement(pos Pos) {
@@ -519,6 +520,8 @@ func (game *Game) handleInput(input *Input) {
 		}
 	case Drop:
 		game.dropItem(input.Item, &game.CurrentLevel.Player.Character)
+	case Restart:
+		game.Restart()
 	case CloseWindow:
 		close(input.LevelChannel)
 		chanIndex := 0
@@ -697,14 +700,35 @@ func (game *Game) loadLevels() map[string]*Level {
 				}
 			}
 		}
-		randomizeChests(2, level)
-		randomizeMonsters(3, level)
+
+		randomizeLevel(level)
 		levels[levelName] = level
 		err = file.Close()
 		CheckError(err)
 	}
 
 	return levels
+}
+
+func countValidPositions(level *Level) int {
+	count := 0
+	for y := range level.Map {
+		line := level.Map[y]
+		for _, c := range line {
+			switch c.Walkable {
+			case true:
+				count++
+			}
+		}
+	}
+	return count
+}
+
+func randomizeLevel(level *Level) {
+	numChests := countValidPositions(level) * 1 / 100
+	randomizeChests(numChests, level)
+	numMonsters := countValidPositions(level) * 1 / 100
+	randomizeMonsters(numMonsters, level)
 }
 
 func getNeighbors(level *Level, pos Pos) []Pos {

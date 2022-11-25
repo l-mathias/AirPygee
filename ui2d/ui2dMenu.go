@@ -58,6 +58,18 @@ func (ui *ui) buildMenuButtons() {
 		buttonTextRect: &sdl.Rect{X: ui.invOffsetX + ui.invWidth/2 - w/2, Y: ui.invOffsetY + button.H*7 + (button.H / 2) - (h / 2), W: w, H: h},
 	})
 
+	// Restart button
+
+	tex = ui.stringToTexture("Restart game", sdl.Color{R: 139, G: 69, B: 19}, FontMedium)
+	_, _, w, h, _ = tex.Query()
+
+	ui.menuButtons = append(ui.menuButtons, &menuButton{
+		name:           "Restart game",
+		buttonRect:     &sdl.Rect{X: ui.invOffsetX + ui.invWidth/2 - button.W/2, Y: ui.invOffsetY + button.H*9, W: button.W, H: button.H},
+		buttonTexture:  tex,
+		buttonTextRect: &sdl.Rect{X: ui.invOffsetX + ui.invWidth/2 - w/2, Y: ui.invOffsetY + button.H*9 + (button.H / 2) - (h / 2), W: w, H: h},
+	})
+
 }
 
 func (ui *ui) menuActions() {
@@ -175,6 +187,9 @@ func (ui *ui) doMenuAction() {
 		} else {
 			ui.soundsVolume = 10
 		}
+	case "Restart game":
+		ui.inputChan <- &game.Input{Typ: game.Restart, LevelChannel: ui.levelChan}
+		ui.state = UIMain
 	case "Continue":
 		ui.state = UIMain
 	case "Quit":
