@@ -8,7 +8,6 @@ import (
 	"AirPygee/game"
 	"bufio"
 	"encoding/xml"
-	"fmt"
 	"github.com/veandco/go-sdl2/img"
 	"github.com/veandco/go-sdl2/mix"
 	"github.com/veandco/go-sdl2/sdl"
@@ -36,6 +35,7 @@ const (
 	UIMain uiState = iota
 	UIInventory
 	UIMenu
+	UIStartMenu
 	itemSizeRatio float64 = 0.15
 	tileSize      int32   = 32
 )
@@ -153,11 +153,14 @@ type ui struct {
 
 	//Main Menu
 	menuButtons []*menuButton
+
+	//Start Menu
+	startMenuButtons []*menuButton
 }
 
 func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 	ui := &ui{}
-	ui.state = UIMain
+	ui.state = UIStartMenu
 	ui.inputChan = inputChan
 	ui.levelChan = levelChan
 	ui.str2TexSmall.texs = make(map[coloredFont]*sdl.Texture)
@@ -248,6 +251,7 @@ func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 
 	ui.menuButtons = make([]*menuButton, 0)
 	ui.buildMenuButtons()
+	ui.buildStartMenuButtons()
 	ui.LoadTreasureChests()
 
 	return ui
@@ -334,7 +338,6 @@ func (ui *ui) stringToTexture(s string, color sdl.Color, size FontSize) *sdl.Tex
 		}
 		ui.str2TexLarge.mu.RUnlock()
 	}
-	fmt.Println(s)
 
 	fontSurface, err := font.RenderUTF8Blended(s, color)
 	game.CheckError(err)
@@ -705,6 +708,9 @@ func (ui *ui) Run() {
 				}
 			}
 		default:
+		}
+		if ui.state == UIStartMenu {
+			ui.startMenuActions()
 		}
 		ui.draw(newLevel)
 
