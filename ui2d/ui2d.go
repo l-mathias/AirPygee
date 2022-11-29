@@ -36,6 +36,7 @@ const (
 	UIInventory
 	UIMenu
 	UIStartMenu
+	UIStartMenuDifficulty
 	itemSizeRatio float64 = 0.15
 	tileSize      int32   = 32
 )
@@ -155,7 +156,8 @@ type ui struct {
 	menuButtons []*menuButton
 
 	//Start Menu
-	startMenuButtons []*menuButton
+	startMenuButtons  []*menuButton
+	difficultyButtons []*menuButton
 }
 
 func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
@@ -252,6 +254,7 @@ func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 	ui.menuButtons = make([]*menuButton, 0)
 	ui.buildMenuButtons()
 	ui.buildStartMenuButtons()
+	ui.buildDifficultyButtons()
 	ui.LoadTreasureChests()
 
 	return ui
@@ -710,7 +713,7 @@ func (ui *ui) Run() {
 		default:
 		}
 		if ui.state == UIStartMenu {
-			ui.startMenuActions()
+			ui.startMenuActions(newLevel)
 		}
 		ui.draw(newLevel)
 

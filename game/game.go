@@ -33,6 +33,7 @@ const (
 	Equip
 	Drop
 	Restart
+	SetDifficulty
 )
 
 type Game struct {
@@ -40,6 +41,7 @@ type Game struct {
 	InputChan    chan *Input
 	Levels       map[string]*Level
 	CurrentLevel *Level
+	Difficulty   int
 }
 
 func NewGame(numWindows int) *Game {
@@ -49,7 +51,7 @@ func NewGame(numWindows int) *Game {
 	}
 	inputChan := make(chan *Input, 10)
 
-	game := &Game{levelChans, inputChan, nil, nil}
+	game := &Game{LevelChans: levelChans, InputChan: inputChan, Levels: nil, CurrentLevel: nil, Difficulty: 1}
 
 	return game
 }
@@ -70,6 +72,7 @@ type Input struct {
 	Typ          InputType
 	Item         Item
 	LevelChannel chan *Level
+	Difficulty   int
 }
 
 // normal Tiles
@@ -523,6 +526,8 @@ func (game *Game) handleInput(input *Input) {
 		} else {
 			game.equip(input.Item.(EquipableItem))
 		}
+	case SetDifficulty:
+		game.Difficulty = input.Difficulty
 	case Drop:
 		game.dropItem(input.Item, &game.CurrentLevel.Player.Character)
 	case Restart:
@@ -706,7 +711,7 @@ func (game *Game) loadLevels() map[string]*Level {
 			}
 		}
 
-		randomizeLevel(level)
+		game.randomizeLevel(level)
 		levels[levelName] = level
 		err = file.Close()
 		CheckError(err)
@@ -729,10 +734,10 @@ func countValidPositions(level *Level) int {
 	return count
 }
 
-func randomizeLevel(level *Level) {
-	numChests := countValidPositions(level) * 1 / 100
+func (game *Game) randomizeLevel(level *Level) {
+	numChests := countValidPositions(level) * game.Difficulty / 100
 	randomizeChests(numChests, level)
-	numMonsters := countValidPositions(level) * 1 / 100
+	numMonsters := countValidPositions(level) * game.Difficulty / 100
 	randomizeMonsters(numMonsters, level)
 }
 
