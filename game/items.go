@@ -170,7 +170,7 @@ func randomLoot(p Pos, numItems int) []Item {
 	items := make([]Item, 0)
 
 	for i := 0; i < numItems; i++ {
-		number, err := rand.Int(rand.Reader, big.NewInt(4))
+		number, err := rand.Int(rand.Reader, big.NewInt(5))
 		CheckError(err)
 
 		switch {

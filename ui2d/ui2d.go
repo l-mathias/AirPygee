@@ -713,7 +713,7 @@ func (ui *ui) Run() {
 		default:
 		}
 		if ui.state == UIStartMenu {
-			ui.startMenuActions(newLevel)
+			ui.startMenuActions()
 		}
 		ui.draw(newLevel)
 

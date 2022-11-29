@@ -90,7 +90,7 @@ func (ui *ui) buildStartMenuButtons() {
 
 }
 
-func (ui *ui) startMenuActions(level *game.Level) {
+func (ui *ui) startMenuActions() {
 	ui.displayStartMenu()
 	for ui.state == UIStartMenu || ui.state == UIStartMenuDifficulty {
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
@@ -121,7 +121,7 @@ func (ui *ui) startMenuActions(level *game.Level) {
 				} else if ui.state == UIStartMenu {
 					switch e.Keysym.Sym {
 					case sdl.K_RETURN:
-						ui.doStartMenuAction(level)
+						ui.doStartMenuAction()
 					case sdl.K_UP:
 						ui.highlightPreviousStartMenu()
 						ui.displayStartMenu()
@@ -195,6 +195,12 @@ func (ui *ui) displayStartMenu() {
 		err = ui.renderer.Copy(b.buttonTexture, nil, b.buttonTextRect)
 		game.CheckError(err)
 	}
+
+	tex := ui.stringToTexture(ui.getDifficultyHighlightedButton().name, sdl.Color{R: 139, G: 69, B: 19}, FontMedium)
+	_, _, w, h, _ := tex.Query()
+
+	err = ui.renderer.Copy(tex, nil, &sdl.Rect{X: ui.invOffsetX + ui.invWidth/2 + buttonStandard.W/2, Y: ui.invOffsetY + buttonStandard.H*3 + (buttonStandard.H / 2) - (h / 2), W: w, H: h})
+	game.CheckError(err)
 	ui.renderer.Present()
 
 }
@@ -263,6 +269,7 @@ func (ui *ui) displayDifficulty() {
 		err = ui.renderer.Copy(b.buttonTexture, nil, b.buttonTextRect)
 		game.CheckError(err)
 	}
+
 	ui.renderer.Present()
 
 }
@@ -280,9 +287,8 @@ func (ui *ui) doDifficultyMenuAction() {
 	}
 }
 
-func (ui *ui) doStartMenuAction(level *game.Level) {
+func (ui *ui) doStartMenuAction() {
 	button := ui.getStartMenuHighlightedButton()
-
 	switch button.name {
 	case "Start":
 		ui.state = UIMain
@@ -290,8 +296,8 @@ func (ui *ui) doStartMenuAction(level *game.Level) {
 	case "Difficulty":
 		ui.state = UIStartMenuDifficulty
 		ui.displayDifficulty()
-	//TODO
 	case "Quit":
+		ui.state = UIMain
 		ui.inputChan <- &game.Input{Typ: game.CloseWindow, LevelChannel: ui.levelChan}
 	}
 }

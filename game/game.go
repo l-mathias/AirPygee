@@ -896,7 +896,7 @@ func randomizeChests(numChests int, level *Level) {
 }
 
 func randomMonster(p Pos) *Monster {
-	number, err := rand.Int(rand.Reader, big.NewInt(2))
+	number, err := rand.Int(rand.Reader, big.NewInt(3))
 	CheckError(err)
 
 	switch {
