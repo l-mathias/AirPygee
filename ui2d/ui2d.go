@@ -97,6 +97,11 @@ type StrToTex struct {
 	texs map[coloredFont]*sdl.Texture
 }
 
+type Animation struct {
+	rect *sdl.Rect
+	tex  *sdl.Texture
+}
+
 type ui struct {
 	state               uiState
 	sounds              sounds
@@ -107,15 +112,18 @@ type ui struct {
 	tileMap             *sdl.Texture
 
 	// Sounds & Music
+	music        *mix.Music
 	musicVolume  int
 	soundsVolume int
 
 	//player
-	pTexture                                          *sdl.Texture
+	pTextureSheet                                     *sdl.Texture
+	pAnimSheet                                        *sdl.Texture
 	pWidthTex, pHeightTex                             int32
 	pFromX, pFromY, pFramesX, pFramesY, pCurrentFrame int32
 	pSrc                                              sdl.Rect
 	pDest                                             sdl.Rect
+	pAnims                                            TextureIndex
 
 	//chests
 	chestsTex *sdl.Texture
@@ -128,7 +136,7 @@ type ui struct {
 	textureIndexTiles, textureIndexMonsters, textureIndexItems, textureIndexAnims, textureIndexChests TextureIndex
 
 	//animations
-	animations       map[rune]*sdl.Rect
+	animations       map[rune]*Animation
 	damagesToDisplay map[string]*Damage
 
 	centerX, centerY int
@@ -168,7 +176,7 @@ func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 	ui.str2TexSmall.texs = make(map[coloredFont]*sdl.Texture)
 	ui.str2TexMedium.texs = make(map[coloredFont]*sdl.Texture)
 	ui.str2TexLarge.texs = make(map[coloredFont]*sdl.Texture)
-	ui.animations = make(map[rune]*sdl.Rect)
+	ui.animations = make(map[rune]*Animation)
 	ui.damagesToDisplay = make(map[string]*Damage)
 	ui.textureIndexChests.rects = make(map[rune][]*sdl.Rect)
 	ui.r = rand.New(rand.NewSource(1))
@@ -194,6 +202,7 @@ func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 	ui.loadTextureIndex(&ui.textureIndexItems, "ui2d/assets/atlas-index-items.txt")
 	ui.loadTextureIndex(&ui.textureIndexAnims, "ui2d/assets/atlas-index-anims.txt")
 	ui.LoadPlayer()
+	ui.LoadPlayerAnims()
 	ui.loadSpritesheetFromXml()
 
 	ui.centerX = -1
@@ -264,11 +273,12 @@ func (ui *ui) loadSounds() {
 	err := mix.OpenAudio(22050, mix.DEFAULT_FORMAT, 2, 4096)
 	game.CheckError(err)
 
-	mus, err := mix.LoadMUS("ui2d/assets/audio/music/the_field_of_dreams.mp3")
+	ui.music, err = mix.LoadMUS("ui2d/assets/audio/music/the_field_of_dreams.mp3")
 	game.CheckError(err)
+
 	mix.VolumeMusic(ui.musicVolume)
 
-	err = mus.Play(-1)
+	err = ui.music.Play(-1)
 	game.CheckError(err)
 
 	ui.sounds.footstep = buildSoundsVariations("ui2d/assets/audio/sounds/Kenney/footstep*.ogg")
@@ -526,6 +536,7 @@ func (ui *ui) draw(level *game.Level) {
 	err := ui.renderer.Clear()
 	game.CheckError(err)
 	ui.r.Seed(1)
+	drawPlayer := true
 	for y, row := range level.Map {
 		for x, tile := range row {
 			if tile.Rune != game.Blank {
@@ -564,18 +575,26 @@ func (ui *ui) draw(level *game.Level) {
 					// display current running animation if any
 					//TODO - switch between ui.textureAtlas and chestsTex
 					if tile.AnimRune != game.Blank {
-						srcRect = ui.animations[tile.AnimRune]
-						err = ui.renderer.Copy(ui.chestsTex, srcRect, &dstRect)
+						if ui.animations[tile.AnimRune].tex == ui.pAnimSheet {
+							drawPlayer = false
+							dstRect.X = int32(level.Player.X)*tileSize + ui.offsetX - (int32(float64(ui.pWidthTex)*1.50) - tileSize)
+							dstRect.Y = int32(level.Player.Y)*tileSize + ui.offsetY - (int32(float64(ui.pHeightTex)*1.50) - tileSize)
+							dstRect.H = int32(float64(ui.pHeightTex) * 1.60)
+							dstRect.W = int32(float64(ui.pWidthTex) * 1.90)
+						}
+						srcRect = ui.animations[tile.AnimRune].rect
+						err = ui.renderer.Copy(ui.animations[tile.AnimRune].tex, srcRect, &dstRect)
 						game.CheckError(err)
 					}
 				}
 			}
 		}
 	}
-
 	ui.displayMonsters(level)
 	ui.displayItems(level)
-	ui.drawPlayer(level)
+	if drawPlayer {
+		ui.drawPlayer(level)
+	}
 	ui.displayHUD(level)
 	ui.displayStats(level)
 	ui.displayEvents(level)
@@ -669,7 +688,7 @@ func (ui *ui) fire(level *game.Level, attackRange int) {
 
 		positions = append(positions, game.Pos{X: x, Y: y})
 	}
-	go ui.displayMovingAnimation(level, 500*time.Millisecond, positions, direction, &ui.textureIndexAnims)
+	go ui.displayMovingAnimation(level, 500*time.Millisecond, 250*time.Millisecond, positions, direction, &ui.textureIndexAnims, ui.textureAtlas)
 }
 
 // Run main UI loop
@@ -693,6 +712,7 @@ func (ui *ui) Run() {
 					playRandomSound(ui.sounds.closeDoor, ui.soundsVolume)
 				case game.Attack:
 					playRandomSound(ui.sounds.swing, ui.soundsVolume)
+					go ui.displayMovingAnimation(newLevel, 5*time.Second, 100*time.Millisecond, []game.Pos{newLevel.Player.Pos}, 'c', &ui.pAnims, ui.pAnimSheet)
 					go ui.addAttackResult(newLevel.LastAttack.Damage, 250*time.Millisecond, newLevel.LastAttack.IsCritical, game.Pos{X: newLevel.LastAttack.Who.X, Y: newLevel.LastAttack.Who.Y - 1})
 				case game.Pickup:
 					playRandomSound(ui.sounds.pickup, ui.soundsVolume)
@@ -740,8 +760,10 @@ func (ui *ui) Run() {
 				switch e.Keysym.Sym {
 				case sdl.K_a:
 					//pos := []game.Pos{{3, 2}}
-					//go ui.displayMovingAnimation(newLevel, 5*time.Second, pos, game.AnimatedPortal, &ui.textureIndexAnims)
-					ui.fire(newLevel, 3)
+					//go ui.displayMovingAnimation(newLevel, 5*time.Second, pos, game.AnimatedPortal, &ui.textureIndexAnims, ui.textureAtlas)
+					//go ui.displayMovingAnimation(newLevel, 5*time.Second, []game.Pos{newLevel.Player.Pos}, 'c', &ui.pAnims, ui.pAnimSheet)
+					//ui.fire(newLevel, 3)
+
 				case sdl.K_ESCAPE:
 					if ui.state == UIMain {
 						ui.state = UIMenu
@@ -767,7 +789,7 @@ func (ui *ui) Run() {
 						case game.OpenableItem:
 							if newLevel.Map[pos.Y][pos.X].Actionable {
 								input = game.Input{Typ: game.Action, Item: newLevel.Items[pos][0]}
-								go ui.displayTileAnimation(newLevel, 0, pos, rune(newLevel.Items[pos][0].(game.OpenableItem).GetSize()), &ui.textureIndexChests)
+								go ui.displayTileAnimation(newLevel, 0, 250*time.Millisecond, pos, rune(newLevel.Items[pos][0].(game.OpenableItem).GetSize()), &ui.textureIndexChests, ui.chestsTex)
 							}
 						default:
 							input = game.Input{Typ: game.Action}

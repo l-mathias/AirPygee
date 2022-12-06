@@ -330,16 +330,20 @@ func (ui *ui) displayDamages() {
 	}
 }
 
-func (ui *ui) displayTileAnimation(level *game.Level, duration time.Duration, p game.Pos, animation rune, textureIndex *TextureIndex) {
+func (ui *ui) displayTileAnimation(level *game.Level, duration time.Duration, tick time.Duration, p game.Pos, animation rune, textureIndex *TextureIndex, tex *sdl.Texture) {
 	tempTile := level.Map[p.Y][p.X].AnimRune
 	numFrames := len(textureIndex.rects[animation])
 	started := true
 	currentFrame := 0
 	timeStart := time.Now()
 
-	for range time.Tick(500 * time.Millisecond) {
+	for range time.Tick(tick) {
 		textureIndex.mu.RLock()
-		ui.animations[animation] = textureIndex.rects[animation][currentFrame]
+		ui.animations[animation] = &Animation{
+			rect: textureIndex.rects[animation][currentFrame],
+			tex:  tex,
+		}
+
 		textureIndex.mu.RUnlock()
 
 		if started {
@@ -363,9 +367,9 @@ func (ui *ui) displayTileAnimation(level *game.Level, duration time.Duration, p 
 	level.Map[p.Y][p.X].AnimRune = tempTile
 }
 
-func (ui *ui) displayMovingAnimation(level *game.Level, duration time.Duration, poss []game.Pos, animation rune, textureIndex *TextureIndex) {
+func (ui *ui) displayMovingAnimation(level *game.Level, duration time.Duration, tick time.Duration, poss []game.Pos, animation rune, textureIndex *TextureIndex, tex *sdl.Texture) {
 	for _, pos := range poss {
-		ui.displayTileAnimation(level, duration, pos, animation, textureIndex)
+		ui.displayTileAnimation(level, duration, tick, pos, animation, textureIndex, tex)
 	}
 }
 

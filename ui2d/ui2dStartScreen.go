@@ -5,6 +5,7 @@ package ui2d
 import (
 	"AirPygee/game"
 	"github.com/veandco/go-sdl2/img"
+	"github.com/veandco/go-sdl2/mix"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
@@ -292,6 +293,12 @@ func (ui *ui) doStartMenuAction() {
 	switch button.name {
 	case "Start":
 		ui.state = UIMain
+		var err error
+		ui.music, err = mix.LoadMUS("ui2d/assets/audio/music/cave themeb4.ogg")
+		game.CheckError(err)
+		err = ui.music.Play(-1)
+		game.CheckError(err)
+
 		ui.inputChan <- &game.Input{Typ: game.Restart, LevelChannel: ui.levelChan}
 	case "Difficulty":
 		ui.state = UIStartMenuDifficulty

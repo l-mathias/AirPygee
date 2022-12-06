@@ -114,7 +114,7 @@ func (ui *ui) drawInventory(level *game.Level) {
 	err := ui.renderer.Copy(ui.uipack, ui.getRectFromTextureName("panel_beige.png"), &sdl.Rect{X: ui.invOffsetX, Y: ui.invOffsetY, W: ui.invWidth, H: ui.invHeight})
 	game.CheckError(err)
 
-	if err := ui.renderer.Copy(ui.pTexture, &playerSrcRect, &sdl.Rect{X: playerX, Y: playerY, W: ui.invWidth / 3, H: ui.invHeight / 3}); err != nil {
+	if err := ui.renderer.Copy(ui.pTextureSheet, &playerSrcRect, &sdl.Rect{X: playerX, Y: playerY, W: ui.invWidth / 3, H: ui.invHeight / 3}); err != nil {
 		panic(err)
 	}
 

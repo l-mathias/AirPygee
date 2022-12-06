@@ -2,6 +2,7 @@ package ui2d
 
 import (
 	"AirPygee/game"
+	"fmt"
 	"github.com/veandco/go-sdl2/img"
 	"github.com/veandco/go-sdl2/sdl"
 )
@@ -12,22 +13,45 @@ func (ui *ui) LoadPlayer() {
 	ui.pFramesY = 4
 
 	image, err := img.Load("ui2d/assets/chara2.png")
-	if err != nil {
-		panic(err)
-	}
+	game.CheckError(err)
 	defer image.Free()
 
 	image.W /= 4
 	image.H /= 2
 
-	ui.pTexture, err = ui.renderer.CreateTextureFromSurface(image)
-	if err != nil {
-		panic(err)
-	}
+	ui.pTextureSheet, err = ui.renderer.CreateTextureFromSurface(image)
+	game.CheckError(err)
 
-	_, _, imageWidth, imageHeight, _ := ui.pTexture.Query()
+	_, _, imageWidth, imageHeight, _ := ui.pTextureSheet.Query()
 	ui.pWidthTex = imageWidth / ui.pFramesX
 	ui.pHeightTex = imageHeight / ui.pFramesY
+}
+
+func (ui *ui) LoadPlayerAnims() {
+	ui.pAnims.rects = make(map[rune][]*sdl.Rect)
+	image, err := img.Load("ui2d/assets/chara2_anims.png")
+	game.CheckError(err)
+	defer image.Free()
+
+	ui.pAnimSheet, err = ui.renderer.CreateTextureFromSurface(image)
+	game.CheckError(err)
+
+	rects := make([]*sdl.Rect, 0)
+	squareSize := int32(144)
+	for i := 0; i < 3; i++ {
+		rects = append(rects, &sdl.Rect{
+			X: 432 + int32(i)*squareSize,
+			Y: 0,
+			W: squareSize,
+			H: squareSize,
+		})
+	}
+
+	for _, rect := range rects {
+		fmt.Println(rect)
+	}
+
+	ui.pAnims.rects['c'] = rects
 }
 
 func (ui *ui) UpdatePlayer(input game.InputType) {
@@ -54,6 +78,6 @@ func (ui *ui) drawPlayer(level *game.Level) {
 	ui.pSrc = sdl.Rect{X: ui.pFromX, Y: ui.pFromY, W: ui.pWidthTex, H: ui.pHeightTex}
 	ui.pDest = sdl.Rect{X: int32(p.X)*tileSize + ui.offsetX - (int32(float64(ui.pWidthTex)*1.25) - tileSize), Y: int32(p.Y)*tileSize + ui.offsetY - (int32(float64(ui.pHeightTex)*1.25) - tileSize), W: int32(float64(ui.pWidthTex) * 1.25), H: int32(float64(ui.pHeightTex) * 1.25)}
 
-	err := ui.renderer.Copy(ui.pTexture, &ui.pSrc, &ui.pDest)
+	err := ui.renderer.Copy(ui.pTextureSheet, &ui.pSrc, &ui.pDest)
 	game.CheckError(err)
 }
