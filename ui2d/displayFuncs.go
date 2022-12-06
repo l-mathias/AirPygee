@@ -343,7 +343,6 @@ func (ui *ui) displayTileAnimation(level *game.Level, duration time.Duration, ti
 			rect: textureIndex.rects[animation][currentFrame],
 			tex:  tex,
 		}
-
 		textureIndex.mu.RUnlock()
 
 		if started {

@@ -577,13 +577,14 @@ func (ui *ui) draw(level *game.Level) {
 					if tile.AnimRune != game.Blank {
 						if ui.animations[tile.AnimRune].tex == ui.pAnimSheet {
 							drawPlayer = false
+							tile.Visible = false
 							dstRect.X = int32(level.Player.X)*tileSize + ui.offsetX - (int32(float64(ui.pWidthTex)*1.50) - tileSize)
 							dstRect.Y = int32(level.Player.Y)*tileSize + ui.offsetY - (int32(float64(ui.pHeightTex)*1.50) - tileSize)
 							dstRect.H = int32(float64(ui.pHeightTex) * 1.60)
 							dstRect.W = int32(float64(ui.pWidthTex) * 1.90)
 						}
 						srcRect = ui.animations[tile.AnimRune].rect
-						err = ui.renderer.Copy(ui.animations[tile.AnimRune].tex, srcRect, &dstRect)
+						err = ui.renderer.CopyEx(ui.animations[tile.AnimRune].tex, srcRect, &dstRect, 0, nil, sdl.FLIP_HORIZONTAL)
 						game.CheckError(err)
 					}
 				}
@@ -712,7 +713,17 @@ func (ui *ui) Run() {
 					playRandomSound(ui.sounds.closeDoor, ui.soundsVolume)
 				case game.Attack:
 					playRandomSound(ui.sounds.swing, ui.soundsVolume)
-					go ui.displayMovingAnimation(newLevel, 5*time.Second, 100*time.Millisecond, []game.Pos{newLevel.Player.Pos}, 'c', &ui.pAnims, ui.pAnimSheet)
+					isThereAnyCombat := false
+					for y, row := range newLevel.Map {
+						for x, _ := range row {
+							if newLevel.Map[y][x].AnimRune == 'c' {
+								isThereAnyCombat = true
+							}
+						}
+					}
+					if !isThereAnyCombat {
+						go ui.displayMovingAnimation(newLevel, 3*time.Second, 100*time.Millisecond, []game.Pos{newLevel.Player.Pos}, 'c', &ui.pAnims, ui.pAnimSheet)
+					}
 					go ui.addAttackResult(newLevel.LastAttack.Damage, 250*time.Millisecond, newLevel.LastAttack.IsCritical, game.Pos{X: newLevel.LastAttack.Who.X, Y: newLevel.LastAttack.Who.Y - 1})
 				case game.Pickup:
 					playRandomSound(ui.sounds.pickup, ui.soundsVolume)

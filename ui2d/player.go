@@ -2,7 +2,6 @@ package ui2d
 
 import (
 	"AirPygee/game"
-	"fmt"
 	"github.com/veandco/go-sdl2/img"
 	"github.com/veandco/go-sdl2/sdl"
 )
@@ -46,11 +45,6 @@ func (ui *ui) LoadPlayerAnims() {
 			H: squareSize,
 		})
 	}
-
-	for _, rect := range rects {
-		fmt.Println(rect)
-	}
-
 	ui.pAnims.rects['c'] = rects
 }
 
