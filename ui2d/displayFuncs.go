@@ -330,6 +330,7 @@ func (ui *ui) displayDamages() {
 	}
 }
 
+// displayTileAnimation if passed a zero duration, will only play all frames once
 func (ui *ui) displayTileAnimation(level *game.Level, duration time.Duration, tick time.Duration, p game.Pos, animation rune, textureIndex *TextureIndex, tex *sdl.Texture) {
 	tempTile := level.Map[p.Y][p.X].AnimRune
 	numFrames := len(textureIndex.rects[animation])
@@ -347,17 +348,16 @@ func (ui *ui) displayTileAnimation(level *game.Level, duration time.Duration, ti
 		textureIndex.mu.RUnlock()
 
 		if started {
-			level.Items[p] = nil
 			level.Map[p.Y][p.X].AnimRune = animation
 			started = false
 		}
 
 		currentFrame++
 		if currentFrame == numFrames {
-			if duration > 0 {
-				currentFrame = 0
+			if duration == 0 {
+				return
 			} else {
-				break
+				currentFrame = 0
 			}
 		}
 		if time.Since(timeStart) >= duration && duration > 0 {
@@ -382,8 +382,6 @@ func (ui *ui) displayPlayerAnimation(duration time.Duration, tick time.Duration,
 		textureIndex.mu.RUnlock()
 
 		if started {
-			//TODO - Why empty items ?
-			//level.Items[p] = nil
 			ui.pAnimated = true
 			started = false
 		}

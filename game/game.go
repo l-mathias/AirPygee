@@ -418,6 +418,7 @@ func (game *Game) resolveMovement(pos Pos) {
 	monster, exists := game.CurrentLevel.Monsters[pos]
 	game.CurrentLevel.Player.CameFrom = game.CurrentLevel.Player.Pos
 	if exists {
+		level.Player.WantedTo = pos
 		game.CurrentLevel.Attack(&level.Player.Character, &monster.Character)
 		if monster.Health <= 0 {
 			monster.Kill(level)

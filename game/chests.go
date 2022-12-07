@@ -59,6 +59,20 @@ func NewTreasureChest(p Pos, size int) *TreasureChest {
 	}
 }
 
+func removeFromSlice(s []Item, i int) []Item {
+	s[i] = s[len(s)-1]
+	return s[:len(s)-1]
+}
+
+func (game *Game) removeChest(pos Pos) {
+	for i, item := range game.CurrentLevel.Items[pos] {
+		switch item.(type) {
+		case OpenableItem:
+			game.CurrentLevel.Items[pos] = removeFromSlice(game.CurrentLevel.Items[pos], i)
+		}
+	}
+}
+
 func (game *Game) OpenItem(chest OpenableItem) {
 	game.CurrentLevel.Items[game.CurrentLevel.Player.Pos] = chest.GetItems()
 	chest.RemoveItems()
@@ -67,5 +81,6 @@ func (game *Game) OpenItem(chest OpenableItem) {
 	game.CurrentLevel.LastEvent = OpenChest
 	game.CurrentLevel.Map[chest.GetPos().Y][chest.GetPos().X].Actionable = false
 	game.CurrentLevel.Map[chest.GetPos().Y][chest.GetPos().X].Walkable = true
+	game.removeChest(chest.GetPos())
 	game.CurrentLevel.lineOfSight()
 }

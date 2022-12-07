@@ -8,6 +8,7 @@ import (
 	"AirPygee/game"
 	"bufio"
 	"encoding/xml"
+	"fmt"
 	"github.com/veandco/go-sdl2/img"
 	"github.com/veandco/go-sdl2/mix"
 	"github.com/veandco/go-sdl2/sdl"
@@ -669,6 +670,12 @@ func (ui *ui) fire(level *game.Level, attackRange int) {
 	firstPos := level.FrontOf()
 	positions := make([]game.Pos, 0)
 
+	fmt.Println("firstPos : ", firstPos)
+	fmt.Println("Player Pos : ", level.Player.Pos)
+	if firstPos == level.Player.Pos {
+		fmt.Println("positions are equal, switching to wantedTo")
+	}
+
 	switch {
 	case firstPos.X > level.Player.X:
 		direction = game.RightAnim
@@ -685,6 +692,7 @@ func (ui *ui) fire(level *game.Level, attackRange int) {
 	default:
 		//TODO - bug here when firstPos == level.Player.Pos == level.Player.Wanted
 		//a simple return is fixing the bug at this time
+		fmt.Println("Wanted To", level.Player.WantedTo)
 		return
 	}
 
@@ -785,12 +793,16 @@ func (ui *ui) Run() {
 				}
 				switch e.Keysym.Sym {
 				case sdl.K_a:
+					for _, item := range newLevel.Player.EquippedItems {
+						if item.GetName() == "Bow" {
+							if !ui.pAnimated {
+								go ui.displayPlayerAnimation(1*time.Second, 200*time.Millisecond, 'b', &ui.pAnims, ui.pAnimSheet)
+								ui.fire(newLevel, 3)
+							}
+						}
+					}
 					//pos := []game.Pos{{3, 2}}
 					//go ui.displayMovingAnimation(newLevel, 5*time.Second, pos, game.AnimatedPortal, &ui.textureIndexAnims, ui.textureAtlas)
-					if !ui.pAnimated {
-						go ui.displayPlayerAnimation(1*time.Second, 200*time.Millisecond, 'b', &ui.pAnims, ui.pAnimSheet)
-						ui.fire(newLevel, 3)
-					}
 				case sdl.K_ESCAPE:
 					if ui.state == UIMain {
 						ui.state = UIMenu
