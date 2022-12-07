@@ -170,7 +170,7 @@ func randomLoot(p Pos, numItems int) []Item {
 	items := make([]Item, 0)
 
 	for i := 0; i < numItems; i++ {
-		number, err := rand.Int(rand.Reader, big.NewInt(5))
+		number, err := rand.Int(rand.Reader, big.NewInt(6))
 		CheckError(err)
 
 		switch {
@@ -184,6 +184,8 @@ func randomLoot(p Pos, numItems int) []Item {
 			items = append(items, NewHealthPotion(p, "Small"))
 		case number.Int64() == 4:
 			items = append(items, NewBoots(p))
+		case number.Int64() == 5:
+			items = append(items, NewBow(p))
 		}
 	}
 

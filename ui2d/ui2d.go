@@ -8,7 +8,6 @@ import (
 	"AirPygee/game"
 	"bufio"
 	"encoding/xml"
-	"fmt"
 	"github.com/veandco/go-sdl2/img"
 	"github.com/veandco/go-sdl2/mix"
 	"github.com/veandco/go-sdl2/sdl"
@@ -577,7 +576,8 @@ func (ui *ui) draw(level *game.Level) {
 					// display current running animation if any
 					if tile.AnimRune != game.Blank {
 						srcRect = ui.animations[tile.AnimRune].rect
-						err = ui.renderer.CopyEx(ui.animations[tile.AnimRune].tex, srcRect, &dstRect, 0, nil, sdl.FLIP_HORIZONTAL)
+						//err = ui.renderer.CopyEx(ui.animations[tile.AnimRune].tex, srcRect, &dstRect, 0, nil, sdl.FLIP_HORIZONTAL)
+						err = ui.renderer.Copy(ui.animations[tile.AnimRune].tex, srcRect, &dstRect)
 						game.CheckError(err)
 					}
 				}
@@ -596,7 +596,12 @@ func (ui *ui) draw(level *game.Level) {
 			H: int32(float64(ui.pHeightTex) * 1.60),
 		}
 		srcRect := ui.currentAnim.rect
-		err = ui.renderer.CopyEx(ui.currentAnim.tex, srcRect, dstRect, 0, nil, sdl.FLIP_HORIZONTAL)
+
+		if level.FrontOf().X > level.Player.X {
+			err = ui.renderer.CopyEx(ui.currentAnim.tex, srcRect, dstRect, 0, nil, sdl.FLIP_HORIZONTAL)
+		} else {
+			err = ui.renderer.CopyEx(ui.currentAnim.tex, srcRect, dstRect, 0, nil, sdl.FLIP_NONE)
+		}
 		game.CheckError(err)
 	}
 	ui.displayHUD(level)
@@ -692,7 +697,7 @@ func (ui *ui) fire(level *game.Level, attackRange int) {
 
 		positions = append(positions, game.Pos{X: x, Y: y})
 	}
-	go ui.displayMovingAnimation(level, 500*time.Millisecond, 250*time.Millisecond, positions, direction, &ui.textureIndexAnims, ui.textureAtlas)
+	go ui.displayMovingAnimation(level, 250*time.Millisecond, 100*time.Millisecond, positions, direction, &ui.textureIndexAnims, ui.textureAtlas)
 }
 
 // Run main UI loop
@@ -764,16 +769,11 @@ func (ui *ui) Run() {
 					break
 				}
 				switch e.Keysym.Sym {
-				case sdl.K_r:
-					fmt.Println("Rune : ", newLevel.Map[newLevel.Player.Y][newLevel.Player.X].Rune)
-					fmt.Println("OverlayRune : ", newLevel.Map[newLevel.Player.Y][newLevel.Player.X].OverlayRune)
-					fmt.Println("AnimRune : ", newLevel.Map[newLevel.Player.Y][newLevel.Player.X].AnimRune)
 				case sdl.K_a:
 					//pos := []game.Pos{{3, 2}}
 					//go ui.displayMovingAnimation(newLevel, 5*time.Second, pos, game.AnimatedPortal, &ui.textureIndexAnims, ui.textureAtlas)
-					//go ui.displayMovingAnimation(newLevel, 5*time.Second, 100*time.Millisecond, []game.Pos{newLevel.Player.Pos}, 'c', &ui.pAnims, ui.pAnimSheet)
-					go ui.displayPlayerAnimation(newLevel, 3*time.Second, 100*time.Millisecond, 'c', &ui.pAnims, ui.pAnimSheet)
-					//ui.fire(newLevel, 3)
+					go ui.displayPlayerAnimation(newLevel, 1*time.Second, 200*time.Millisecond, 'b', &ui.pAnims, ui.pAnimSheet)
+					ui.fire(newLevel, 3)
 				case sdl.K_ESCAPE:
 					if ui.state == UIMain {
 						ui.state = UIMenu

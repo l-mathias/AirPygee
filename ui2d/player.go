@@ -28,6 +28,7 @@ func (ui *ui) LoadPlayer() {
 
 func (ui *ui) LoadPlayerAnims() {
 	ui.pAnims.rects = make(map[rune][]*sdl.Rect)
+	squareSize := int32(144)
 	image, err := img.Load("ui2d/assets/chara2_anims.png")
 	game.CheckError(err)
 	defer image.Free()
@@ -35,8 +36,8 @@ func (ui *ui) LoadPlayerAnims() {
 	ui.pAnimSheet, err = ui.renderer.CreateTextureFromSurface(image)
 	game.CheckError(err)
 
+	// sword attack rects
 	rects := make([]*sdl.Rect, 0)
-	squareSize := int32(144)
 	for i := 0; i < 3; i++ {
 		rects = append(rects, &sdl.Rect{
 			X: 432 + int32(i)*squareSize,
@@ -46,6 +47,18 @@ func (ui *ui) LoadPlayerAnims() {
 		})
 	}
 	ui.pAnims.rects['c'] = rects
+
+	// bow attack rects
+	rects = make([]*sdl.Rect, 0)
+	for i := 0; i < 3; i++ {
+		rects = append(rects, &sdl.Rect{
+			X: 432 + int32(i)*squareSize,
+			Y: 288,
+			W: squareSize,
+			H: squareSize,
+		})
+	}
+	ui.pAnims.rects['b'] = rects
 }
 
 func (ui *ui) UpdatePlayer(input game.InputType) {

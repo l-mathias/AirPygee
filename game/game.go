@@ -668,6 +668,9 @@ func (game *Game) loadLevels() map[string]*Level {
 				case 's':
 					level.Items[pos] = append(level.Items[pos], NewSword(pos))
 					level.Map[y][x].Rune = Pending
+				//case 'B':
+				//	level.Items[pos] = append(level.Items[pos], NewSword(pos))
+				//	level.Map[y][x].Rune = Pending
 				case 'h':
 					level.Items[pos] = append(level.Items[pos], NewHelmet(pos))
 					level.Map[y][x].Rune = Pending

@@ -12,6 +12,10 @@ type Sword struct {
 	Weapon
 }
 
+type Bow struct {
+	Weapon
+}
+
 func (w *Weapon) GetDescription() string {
 	return w.Description
 }
@@ -76,6 +80,28 @@ func NewSword(p Pos) *Sword {
 			Rune:        's',
 			Type:        Weapons,
 			Description: "A common sword...",
+		},
+			Location:           RightHand,
+			Rarity:             rarity,
+			EquipableItemStats: *stats,
+		}}
+}
+
+func NewBow(p Pos) *Bow {
+	rarity := randomizeRarity()
+	stats := adaptStatsToRarity(rarity, &EquipableItemStats{
+		MinDamage: 5,
+		MaxDamage: 10,
+		Armor:     0,
+		Critical:  0,
+	})
+	return &Bow{
+		Weapon: Weapon{Entity: Entity{
+			Pos:         p,
+			Name:        "Bow",
+			Rune:        'B',
+			Type:        Weapons,
+			Description: "A common bow...",
 		},
 			Location:           RightHand,
 			Rarity:             rarity,
