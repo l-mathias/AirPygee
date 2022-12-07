@@ -409,7 +409,7 @@ func (game *Game) Restart() {
 	game.CurrentLevel.lineOfSight()
 }
 
-func (game *Game) dead() {
+func (game *Game) Dead() {
 	game.Restart()
 }
 
@@ -420,10 +420,10 @@ func (game *Game) resolveMovement(pos Pos) {
 	if exists {
 		game.CurrentLevel.Attack(&level.Player.Character, &monster.Character)
 		if monster.Health <= 0 {
-			monster.kill(level)
+			monster.Kill(level)
 		}
 		if game.CurrentLevel.Player.Health <= 0 {
-			game.dead()
+			game.Dead()
 		}
 	} else if canWalk(level, pos) {
 		level.Player.WantedTo = pos
@@ -938,7 +938,7 @@ func (game *Game) Run() {
 		for _, monster := range game.CurrentLevel.Monsters {
 			monster.Update(game)
 			if game.CurrentLevel.Player.Health <= 0 {
-				game.dead()
+				game.Dead()
 				break
 			}
 		}

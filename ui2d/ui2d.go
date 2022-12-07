@@ -682,6 +682,10 @@ func (ui *ui) fire(level *game.Level, attackRange int) {
 	case firstPos.Y < level.Player.Y:
 		direction = game.UpAnim
 		deltaY = -1
+	default:
+		//TODO - bug here when firstPos == level.Player.Pos == level.Player.Wanted
+		//a simple return is fixing the bug at this time
+		return
 	}
 
 	for i := 1; i <= attackRange; i++ {
@@ -694,9 +698,20 @@ func (ui *ui) fire(level *game.Level, attackRange int) {
 		if y < 0 || !level.Map[y][x].Walkable {
 			break
 		}
+		if mob, ok := level.Monsters[game.Pos{X: x, Y: y}]; ok {
+			level.Attack(&level.Player.Character, &mob.Character)
+			if mob.Health <= 0 {
+				mob.Kill(level)
+			}
+			if level.Player.Health <= 0 {
+				//game.Dead()
+			}
+			break
+		}
 
 		positions = append(positions, game.Pos{X: x, Y: y})
 	}
+
 	go ui.displayMovingAnimation(level, 250*time.Millisecond, 100*time.Millisecond, positions, direction, &ui.textureIndexAnims, ui.textureAtlas)
 }
 
@@ -722,7 +737,7 @@ func (ui *ui) Run() {
 				case game.Attack:
 					playRandomSound(ui.sounds.swing, ui.soundsVolume)
 					if !ui.pAnimated {
-						go ui.displayPlayerAnimation(newLevel, 3*time.Second, 100*time.Millisecond, 'c', &ui.pAnims, ui.pAnimSheet)
+						go ui.displayPlayerAnimation(3*time.Second, 100*time.Millisecond, 'c', &ui.pAnims, ui.pAnimSheet)
 					}
 					go ui.addAttackResult(newLevel.LastAttack.Damage, 250*time.Millisecond, newLevel.LastAttack.IsCritical, game.Pos{X: newLevel.LastAttack.Who.X, Y: newLevel.LastAttack.Who.Y - 1})
 				case game.Pickup:
@@ -772,8 +787,10 @@ func (ui *ui) Run() {
 				case sdl.K_a:
 					//pos := []game.Pos{{3, 2}}
 					//go ui.displayMovingAnimation(newLevel, 5*time.Second, pos, game.AnimatedPortal, &ui.textureIndexAnims, ui.textureAtlas)
-					go ui.displayPlayerAnimation(newLevel, 1*time.Second, 200*time.Millisecond, 'b', &ui.pAnims, ui.pAnimSheet)
-					ui.fire(newLevel, 3)
+					if !ui.pAnimated {
+						go ui.displayPlayerAnimation(1*time.Second, 200*time.Millisecond, 'b', &ui.pAnims, ui.pAnimSheet)
+						ui.fire(newLevel, 3)
+					}
 				case sdl.K_ESCAPE:
 					if ui.state == UIMain {
 						ui.state = UIMenu

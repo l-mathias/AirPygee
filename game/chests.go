@@ -67,4 +67,5 @@ func (game *Game) OpenItem(chest OpenableItem) {
 	game.CurrentLevel.LastEvent = OpenChest
 	game.CurrentLevel.Map[chest.GetPos().Y][chest.GetPos().X].Actionable = false
 	game.CurrentLevel.Map[chest.GetPos().Y][chest.GetPos().X].Walkable = true
+	game.CurrentLevel.lineOfSight()
 }

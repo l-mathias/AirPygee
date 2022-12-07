@@ -79,7 +79,7 @@ func NewSpider(p Pos) *Monster {
 	}}
 }
 
-func (m *Monster) kill(level *Level) {
+func (m *Monster) Kill(level *Level) {
 	delete(level.Monsters, m.Pos)
 	groundItems := level.Items[m.Pos]
 	for _, item := range m.Items {
