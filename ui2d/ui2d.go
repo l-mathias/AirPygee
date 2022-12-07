@@ -8,6 +8,7 @@ import (
 	"AirPygee/game"
 	"bufio"
 	"encoding/xml"
+	"fmt"
 	"github.com/veandco/go-sdl2/img"
 	"github.com/veandco/go-sdl2/mix"
 	"github.com/veandco/go-sdl2/sdl"
@@ -124,6 +125,7 @@ type ui struct {
 	pSrc                                              sdl.Rect
 	pDest                                             sdl.Rect
 	pAnims                                            TextureIndex
+	pAnimated                                         bool
 
 	//chests
 	chestsTex *sdl.Texture
@@ -137,6 +139,7 @@ type ui struct {
 
 	//animations
 	animations       map[rune]*Animation
+	currentAnim      *Animation
 	damagesToDisplay map[string]*Damage
 
 	centerX, centerY int
@@ -536,7 +539,6 @@ func (ui *ui) draw(level *game.Level) {
 	err := ui.renderer.Clear()
 	game.CheckError(err)
 	ui.r.Seed(1)
-	drawPlayer := true
 	for y, row := range level.Map {
 		for x, tile := range row {
 			if tile.Rune != game.Blank {
@@ -573,16 +575,7 @@ func (ui *ui) draw(level *game.Level) {
 					}
 
 					// display current running animation if any
-					//TODO - switch between ui.textureAtlas and chestsTex
 					if tile.AnimRune != game.Blank {
-						if ui.animations[tile.AnimRune].tex == ui.pAnimSheet {
-							drawPlayer = false
-							tile.Visible = false
-							dstRect.X = int32(level.Player.X)*tileSize + ui.offsetX - (int32(float64(ui.pWidthTex)*1.50) - tileSize)
-							dstRect.Y = int32(level.Player.Y)*tileSize + ui.offsetY - (int32(float64(ui.pHeightTex)*1.50) - tileSize)
-							dstRect.H = int32(float64(ui.pHeightTex) * 1.60)
-							dstRect.W = int32(float64(ui.pWidthTex) * 1.90)
-						}
 						srcRect = ui.animations[tile.AnimRune].rect
 						err = ui.renderer.CopyEx(ui.animations[tile.AnimRune].tex, srcRect, &dstRect, 0, nil, sdl.FLIP_HORIZONTAL)
 						game.CheckError(err)
@@ -593,8 +586,18 @@ func (ui *ui) draw(level *game.Level) {
 	}
 	ui.displayMonsters(level)
 	ui.displayItems(level)
-	if drawPlayer {
+	if !ui.pAnimated {
 		ui.drawPlayer(level)
+	} else {
+		dstRect := &sdl.Rect{
+			X: int32(level.Player.X)*tileSize + ui.offsetX - (int32(float64(ui.pWidthTex)*1.50) - tileSize),
+			Y: int32(level.Player.Y)*tileSize + ui.offsetY - (int32(float64(ui.pHeightTex)*1.50) - tileSize),
+			W: int32(float64(ui.pWidthTex) * 1.90),
+			H: int32(float64(ui.pHeightTex) * 1.60),
+		}
+		srcRect := ui.currentAnim.rect
+		err = ui.renderer.CopyEx(ui.currentAnim.tex, srcRect, dstRect, 0, nil, sdl.FLIP_HORIZONTAL)
+		game.CheckError(err)
 	}
 	ui.displayHUD(level)
 	ui.displayStats(level)
@@ -713,16 +716,8 @@ func (ui *ui) Run() {
 					playRandomSound(ui.sounds.closeDoor, ui.soundsVolume)
 				case game.Attack:
 					playRandomSound(ui.sounds.swing, ui.soundsVolume)
-					isThereAnyCombat := false
-					for y, row := range newLevel.Map {
-						for x, _ := range row {
-							if newLevel.Map[y][x].AnimRune == 'c' {
-								isThereAnyCombat = true
-							}
-						}
-					}
-					if !isThereAnyCombat {
-						go ui.displayMovingAnimation(newLevel, 3*time.Second, 100*time.Millisecond, []game.Pos{newLevel.Player.Pos}, 'c', &ui.pAnims, ui.pAnimSheet)
+					if !ui.pAnimated {
+						go ui.displayPlayerAnimation(newLevel, 3*time.Second, 100*time.Millisecond, 'c', &ui.pAnims, ui.pAnimSheet)
 					}
 					go ui.addAttackResult(newLevel.LastAttack.Damage, 250*time.Millisecond, newLevel.LastAttack.IsCritical, game.Pos{X: newLevel.LastAttack.Who.X, Y: newLevel.LastAttack.Who.Y - 1})
 				case game.Pickup:
@@ -769,12 +764,16 @@ func (ui *ui) Run() {
 					break
 				}
 				switch e.Keysym.Sym {
+				case sdl.K_r:
+					fmt.Println("Rune : ", newLevel.Map[newLevel.Player.Y][newLevel.Player.X].Rune)
+					fmt.Println("OverlayRune : ", newLevel.Map[newLevel.Player.Y][newLevel.Player.X].OverlayRune)
+					fmt.Println("AnimRune : ", newLevel.Map[newLevel.Player.Y][newLevel.Player.X].AnimRune)
 				case sdl.K_a:
 					//pos := []game.Pos{{3, 2}}
 					//go ui.displayMovingAnimation(newLevel, 5*time.Second, pos, game.AnimatedPortal, &ui.textureIndexAnims, ui.textureAtlas)
-					//go ui.displayMovingAnimation(newLevel, 5*time.Second, []game.Pos{newLevel.Player.Pos}, 'c', &ui.pAnims, ui.pAnimSheet)
+					//go ui.displayMovingAnimation(newLevel, 5*time.Second, 100*time.Millisecond, []game.Pos{newLevel.Player.Pos}, 'c', &ui.pAnims, ui.pAnimSheet)
+					go ui.displayPlayerAnimation(newLevel, 3*time.Second, 100*time.Millisecond, 'c', &ui.pAnims, ui.pAnimSheet)
 					//ui.fire(newLevel, 3)
-
 				case sdl.K_ESCAPE:
 					if ui.state == UIMain {
 						ui.state = UIMenu

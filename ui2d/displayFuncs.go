@@ -356,6 +356,7 @@ func (ui *ui) displayTileAnimation(level *game.Level, duration time.Duration, ti
 			if duration > 0 {
 				currentFrame = 0
 			} else {
+				level.Map[p.Y][p.X].AnimRune = tempTile
 				return
 			}
 		}
@@ -364,6 +365,42 @@ func (ui *ui) displayTileAnimation(level *game.Level, duration time.Duration, ti
 		}
 	}
 	level.Map[p.Y][p.X].AnimRune = tempTile
+}
+
+func (ui *ui) displayPlayerAnimation(level *game.Level, duration time.Duration, tick time.Duration, animation rune, textureIndex *TextureIndex, tex *sdl.Texture) {
+	p := level.Player.Pos
+	numFrames := len(textureIndex.rects[animation])
+	started := true
+	currentFrame := 0
+	timeStart := time.Now()
+
+	for range time.Tick(tick) {
+		textureIndex.mu.RLock()
+		ui.currentAnim = &Animation{
+			rect: textureIndex.rects[animation][currentFrame],
+			tex:  tex,
+		}
+		textureIndex.mu.RUnlock()
+
+		if started {
+			level.Items[p] = nil
+			ui.pAnimated = true
+			started = false
+		}
+
+		currentFrame++
+		if currentFrame == numFrames {
+			if duration > 0 {
+				currentFrame = 0
+			} else {
+				return
+			}
+		}
+		if time.Since(timeStart) >= duration && duration > 0 {
+			break
+		}
+	}
+	ui.pAnimated = false
 }
 
 func (ui *ui) displayMovingAnimation(level *game.Level, duration time.Duration, tick time.Duration, poss []game.Pos, animation rune, textureIndex *TextureIndex, tex *sdl.Texture) {
